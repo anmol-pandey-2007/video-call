@@ -10,89 +10,140 @@
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <style>
   :root {
-    --bg: #0e1116; --panel: #171b22; --panel2: #1f2530; --line: #2a313d;
-    --text: #e8ecf1; --muted: #8e99a8; --accent: #4f8cff; --danger: #e5484d;
+    --bg1: #f6f1ff; --bg2: #e2d6fa; --panel: #ffffff; --panel2: #f1eafd; --line: #d8caf4;
+    --text: #2b2147; --muted: #7b6f9c; --accent: #8463d8; --accent2: #b39af0;
+    --danger: #e5484d; --tile: #1d1630;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-         background: var(--bg); color: var(--text); overflow: hidden; }
-  button { font: inherit; color: inherit; cursor: pointer; border: 0; }
+         background: linear-gradient(160deg, var(--bg1), var(--bg2)) fixed; color: var(--text); overflow: hidden; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; }
   .hidden { display: none !important; }
+
   .copyright { color: var(--muted); font-size: 12px; letter-spacing: .2px; }
+  .copyright .know { background: none; padding: 0; margin-left: 6px; color: var(--accent);
+                     font-size: 12px; text-decoration: underline; }
 
   /* ---------- Join screen ---------- */
   #join { height: 100dvh; display: flex; flex-direction: column; align-items: center;
-          justify-content: center; gap: 18px; padding: 20px; }
+          justify-content: center; gap: 18px; padding: 20px; overflow: auto; }
   .card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line);
-          border-radius: 18px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+          border-radius: 20px; padding: 22px; box-shadow: 0 20px 50px rgba(110, 80, 190, .22); }
   .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
-          background: linear-gradient(135deg, var(--accent), #8b5cf6); }
+  .logo { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+          background: linear-gradient(135deg, var(--accent2), var(--accent)); }
   .logo svg { width: 20px; height: 20px; }
   h1 { font-size: 20px; margin: 0; }
   .sub { color: var(--muted); font-size: 14px; margin: 4px 0 16px; }
-  #previewWrap { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 12px;
+  #previewWrap { position: relative; aspect-ratio: 4 / 3; background: var(--tile); border-radius: 14px;
                  overflow: hidden; margin-bottom: 14px; }
-  #preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #preview { width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
   #previewMsg { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
-                text-align: center; color: var(--muted); font-size: 14px; }
+                text-align: center; color: #cfc4ee; font-size: 14px; }
   label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
-  input[type=text] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
-                     background: var(--panel2); color: var(--text); font: inherit; outline: none; }
-  input[type=text]:focus { border-color: var(--accent); }
-  .primary { width: 100%; margin-top: 14px; padding: 13px; border-radius: 10px; background: var(--accent);
-             color: #fff; font-weight: 600; font-size: 15px; }
-  .primary:disabled { opacity: .5; cursor: not-allowed; }
-  .primary:not(:disabled):hover { filter: brightness(1.1); }
+  input[type=text], select { width: 100%; padding: 11px 13px; border-radius: 11px; border: 1px solid var(--line);
+                     background: var(--panel2); color: var(--text); outline: none; }
+  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  .primary { width: 100%; margin-top: 14px; padding: 13px; border-radius: 11px; color: #fff; font-weight: 600;
+             font-size: 15px; background: linear-gradient(135deg, var(--accent2), var(--accent)); }
+  .primary:disabled { opacity: .55; cursor: not-allowed; }
+  .primary:not(:disabled):hover { filter: brightness(1.06); }
 
   /* ---------- Call screen ---------- */
   #call { height: 100dvh; display: flex; flex-direction: column; }
-  #topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
-  #topbar .title { font-weight: 600; }
-  #count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
-           padding: 3px 10px; font-size: 13px; color: var(--muted); }
+  #topbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+  #topbar .title { font-weight: 700; }
+  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+          padding: 3px 10px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  #hostPill { color: var(--accent); border-color: var(--accent2); }
   #status { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap; }
-  #grid { flex: 1; min-height: 0; display: grid; gap: 10px; padding: 0 12px; }
-  .tile { position: relative; background: #000; border-radius: 14px; overflow: hidden;
-          border: 1px solid var(--line); min-height: 0; min-width: 0; }
-  .tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .tile.me video.mirror { transform: scaleX(-1); }
-  .tile.screen video { object-fit: contain; }
-  .tile .avatar { position: absolute; inset: 0; display: grid; place-items: center; background: var(--panel2); }
-  .tile .avatar span { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center;
-                       font-size: 34px; font-weight: 600; background: linear-gradient(135deg, var(--accent), #8b5cf6); }
-  .tile .name { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 8px;
-                background: rgba(0,0,0,.55); backdrop-filter: blur(6px); font-size: 13px;
+  #main { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 0 12px; }
+  #grid { flex: 1; min-width: 0; min-height: 0; display: grid; gap: 10px; }
+  .tile { position: relative; background: var(--tile); border-radius: 16px; overflow: hidden;
+          border: 2px solid transparent; min-height: 0; min-width: 0; cursor: pointer;
+          box-shadow: 0 6px 18px rgba(80, 55, 150, .18); }
+  .tile.pinned { border-color: var(--accent2); }
+  /* contain = the whole picture is always visible, never cropped */
+  .tile video { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--tile); }
+  .tile video.mirror { transform: scaleX(-1); }
+  .tile .avatar { position: absolute; inset: 0; display: grid; place-items: center; background: #2a2145; }
+  .tile .avatar span { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+                       font-size: 34px; font-weight: 600; background: linear-gradient(135deg, var(--accent2), var(--accent)); }
+  .tile .name { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 9px; color: #fff;
+                background: rgba(29, 22, 48, .65); backdrop-filter: blur(6px); font-size: 13px;
                 max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .badges { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; }
+  .tile .badge { padding: 3px 8px; border-radius: 999px; font-size: 11px; color: #fff; background: rgba(29, 22, 48, .7); }
+  .tile .badge.muted { background: var(--danger); }
+
   #bar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 10px; }
-  #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
-              background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
-  .ctl { position: relative; height: 46px; min-width: 46px; padding: 0 14px; border-radius: 999px; background: var(--panel2);
-         display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
-  .ctl:hover { background: #2a3240; }
+  #controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; background: var(--panel);
+              border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px;
+              box-shadow: 0 10px 30px rgba(110, 80, 190, .18); }
+  .ctl { position: relative; height: 46px; min-width: 46px; padding: 0 14px; border-radius: 999px;
+         background: var(--panel2); display: inline-flex; align-items: center; justify-content: center;
+         gap: 8px; font-size: 14px; }
+  .ctl:hover { background: #e5dafa; }
   .ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;
              stroke-linecap: round; stroke-linejoin: round; flex: none; }
-  .ctl.off { background: var(--danger); }
-  .ctl.off::after { content: ""; position: absolute; left: 13px; top: 22px; width: 22px; height: 2px;
-                    background: #fff; transform: rotate(-45deg); border-radius: 2px; }
-  .ctl.on { background: var(--accent); }
-  .ctl.leave { background: var(--danger); font-weight: 600; }
-  .ctl.leave:hover { filter: brightness(1.1); }
-  #toasts { position: fixed; top: 56px; left: 50%; transform: translateX(-50%); display: flex;
-            flex-direction: column; gap: 8px; align-items: center; pointer-events: none; z-index: 10; }
-  .toast { background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px;
-           font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); animation: pop .2s ease-out; }
+  .ctl.icon { padding: 0; width: 46px; }
+  .ctl.off { background: var(--danger); color: #fff; }
+  .ctl.off::after { content: ""; position: absolute; left: calc(50% - 11px); top: calc(50% - 1px); width: 22px;
+                    height: 2px; background: #fff; transform: rotate(-45deg); border-radius: 2px; }
+  .ctl.on { background: var(--accent); color: #fff; }
+  .ctl.leave { background: var(--danger); color: #fff; font-weight: 600; }
+  .ctl.leave:hover { filter: brightness(1.08); }
+  #badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
+           border-radius: 999px; background: var(--danger); color: #fff; font-size: 11px;
+           display: grid; place-items: center; }
+
+  /* ---------- Chat ---------- */
+  #chat { width: 320px; flex: none; display: flex; flex-direction: column; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .chatHead { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+              border-bottom: 1px solid var(--line); font-weight: 600; }
+  .chatHead button { background: none; font-size: 16px; color: var(--muted); }
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; margin: auto 0; }
+  .msg { max-width: 88%; align-self: flex-start; background: var(--panel2); border-radius: 12px; padding: 7px 10px; }
+  .msg.mine { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.pm { outline: 2px dashed var(--accent2); outline-offset: -2px; }
+  .msg .who { font-size: 11px; opacity: .8; margin-bottom: 2px; }
+  .msg .txt { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .chatTo { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; }
+  .chatTo label { margin: 0; }
+  .chatTo select { padding: 7px 10px; }
+  #chatForm { display: flex; gap: 8px; padding: 10px 12px 12px; }
+  #chatForm input { flex: 1; min-width: 0; }
+  #chatForm button { padding: 0 16px; border-radius: 11px; background: var(--accent); color: #fff; font-weight: 600; }
+
+  /* ---------- Join requests + toasts ---------- */
+  #knocks { position: fixed; top: 54px; right: 12px; z-index: 30; display: flex; flex-direction: column; gap: 8px;
+            width: min(300px, calc(100vw - 24px)); }
+  .knock { background: var(--panel); border: 1px solid var(--accent2); border-radius: 14px; padding: 12px;
+           box-shadow: 0 12px 30px rgba(110, 80, 190, .3); font-size: 14px; }
+  .knock .row { display: flex; gap: 8px; margin-top: 10px; }
+  .knock button { flex: 1; padding: 8px; border-radius: 9px; font-weight: 600; }
+  .knock .yes { background: var(--accent); color: #fff; }
+  .knock .no { background: var(--panel2); }
+  #toasts { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); display: flex;
+            flex-direction: column; gap: 8px; align-items: center; pointer-events: none; z-index: 40; }
+  .toast { background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px;
+           font-size: 13px; box-shadow: 0 8px 24px rgba(110, 80, 190, .25); animation: pop .2s ease-out; }
   @keyframes pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
-  @media (max-width: 600px) {
+  @media (max-width: 700px) {
     .ctl .lbl { display: none; }
-    .ctl { padding: 0; width: 46px; }
-    .ctl.leave { width: auto; padding: 0 16px; }
-    .ctl.leave .lbl { display: inline; }
-    #grid { gap: 6px; padding: 0 6px; }
+    .ctl, .ctl.icon { padding: 0; width: 44px; min-width: 44px; height: 44px; }
+    #controls { gap: 6px; padding: 7px 9px; }
+    #main { padding: 0 6px; }
+    #grid { gap: 6px; }
     .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
+    #chat { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
+    #topbar .title { display: none; }
   }
 </style>
 </head>
@@ -110,68 +161,106 @@
       <video id="preview" autoplay playsinline muted></video>
       <div id="previewMsg">Starting camera…</div>
     </div>
-    <label for="nameInput">Your name</label>
+    <label for="nameInput" id="nameLabel">Your name</label>
     <input type="text" id="nameInput" maxlength="24" placeholder="e.g. Anmol" autocomplete="off">
     <button class="primary" id="joinBtn" disabled>Join call</button>
   </div>
-  <div class="copyright">© 2026 Anmol Pandey. All rights reserved.</div>
+  <div class="copyright">© 2026 Anmol Pandey<span class="more hidden"> &amp; Ananya Tripathi</span>. All rights reserved.<button class="know">Know more</button></div>
 </div>
 
 <!-- ================= Call screen ================= -->
 <div id="call" class="hidden">
   <div id="topbar">
     <span class="title">Group Video Call</span>
-    <span id="count">1 in call</span>
+    <span class="pill" id="count">1 in call</span>
+    <span class="pill hidden" id="hostPill">Host</span>
     <span id="status"></span>
   </div>
-  <div id="grid"></div>
+  <div id="main">
+    <div id="grid"></div>
+    <aside id="chat" class="hidden">
+      <div class="chatHead"><span>Chat</span><button id="chatClose" title="Close chat">✕</button></div>
+      <div id="msgs"><div class="empty" id="noMsgs">No messages yet.</div></div>
+      <div class="chatTo"><label for="chatTo">To</label>
+        <select id="chatTo"><option value="all">Everyone</option></select></div>
+      <form id="chatForm"><input type="text" id="chatInput" maxlength="500" placeholder="Type a message" autocomplete="off"><button>Send</button></form>
+    </aside>
+  </div>
   <div id="bar">
     <div id="controls">
-      <button class="ctl" id="mic" title="Microphone">
+      <button class="ctl icon" id="mic" title="Microphone">
         <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
-      <button class="ctl" id="cam" title="Camera">
+      <button class="ctl icon" id="cam" title="Camera">
         <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>
+      </button>
+      <button class="ctl icon hidden" id="flip" title="Switch camera">
+        <svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 0 1 14-4l2 2M20 14a8 8 0 0 1-14 4l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
       </button>
       <button class="ctl" id="share" title="Share screen">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
         <span class="lbl">Share screen</span>
       </button>
+      <button class="ctl" id="chatBtn" title="Chat">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
+        <span class="lbl">Chat</span>
+        <span id="badge" class="hidden">0</span>
+      </button>
       <button class="ctl" id="copy" title="Copy invite link">
         <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
-        <span class="lbl" id="copyLbl">Invite</span>
+        <span class="lbl">Invite</span>
       </button>
-      <button class="ctl leave" id="leave" title="Leave call"><span class="lbl">Leave</span></button>
+      <button class="ctl leave" id="leave" title="Leave call">
+        <svg viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"/></svg>
+        <span class="lbl">Leave</span>
+      </button>
     </div>
-    <div class="copyright">© 2026 Anmol Pandey</div>
+    <div class="copyright">© 2026 Anmol Pandey<span class="more hidden"> &amp; Ananya Tripathi</span><button class="know">Know more</button></div>
   </div>
 </div>
+<div id="knocks"></div>
 <div id="toasts"></div>
 
 <script>
 /* Group Video Call — © 2026 Anmol Pandey. All rights reserved. */
 const $ = id => document.getElementById(id);
 const MAX_PEOPLE = 6;   // everyone connects directly to everyone, so keep groups small
+const VIDEO = { width: { ideal: 1280 }, height: { ideal: 720 } };   // ask the camera for HD
 
 // The room code lives in the URL (#abc123), so the link itself is the invite.
 if (!location.hash) location.hash = Math.random().toString(36).slice(2, 10);
 const ROOM = location.hash.slice(1);
-// One person at a time holds this fixed ID and acts as the room's "front desk":
-// it tells each newcomer who is already in the call.
-const LOBBY_ID = "ap-group-call-" + ROOM;
+// One person at a time holds this fixed ID and is the HOST: they approve who joins
+// and tell each newcomer who is already in the call.
+const LOBBY_ID = "ap-group-call-v2-" + ROOM;
 
-let myName = "", myId = null, left = false;
-let localStream = null;        // camera + mic
-let screenStream = null;       // set while sharing the screen
-let me = null;                 // my PeerJS connection (random ID)
-let lobby = null;              // set only if I am the front desk
-let lobbyConn = null;          // my link to the front desk (if I am not it)
+let myName = "", myId = null, left = false, inCall = false, isHost = false;
+let localStream = null;          // camera + mic
+let screenStream = null;         // set while sharing the screen
+let placeholderCam = false;      // true if there is no real camera
+let audioCtx = null, mixedTrack = null;   // mic + screen sound mixed together while sharing
+let me = null;                   // my PeerJS connection (random ID)
+let lobby = null;                // set only if I am the host
+let lobbyConn = null;            // my link to the host (if I am not the host)
 let lobbyTimer = null, lobbyWait = null;
-const lobbyConns = new Map();  // front desk only: id -> data connection
-const calls = new Map();       // id -> media call
-const names = new Map();       // id -> display name
+const lobbyConns = new Map();    // host only: id -> link of each admitted person
+const knocks = new Map();        // host only: id -> { conn, el } people asking to join
+const calls = new Map();         // id -> media call
+const peerConns = new Map();     // id -> data link (chat, mute status, etc.)
+const names = new Map();         // id -> display name
+const pstate = new Map();        // id -> { mic, cam, sharing }
+const allowed = new Set();       // ids the host has let in
+const waiters = new Map();       // id -> things to do once that id is allowed
+let pinnedId = null, autoPinned = false;
+let chatOpen = false, unread = 0;
 
-/* ---------------- small UI helpers ---------------- */
+/* ---------------- small helpers ---------------- */
+const clean = n => String(n || "").trim().slice(0, 24) || "Guest";
+const nameOf = id => names.get(id) || "Guest";
+const setStatus = t => $("status").textContent = t;
+const micOn = () => { const t = localStream && localStream.getAudioTracks()[0]; return !!t && t.enabled; };
+const camOn = () => { const t = localStream && localStream.getVideoTracks()[0]; return !placeholderCam && !!t && t.enabled; };
+
 function toast(text) {
   const t = document.createElement("div");
   t.className = "toast";
@@ -179,19 +268,57 @@ function toast(text) {
   $("toasts").appendChild(t);
   setTimeout(() => t.remove(), 3500);
 }
-const setStatus = t => $("status").textContent = t;
-const nameOf = id => names.get(id) || "Guest";
 
+// Only talk to people the host has let in. A call that arrives a moment before
+// the host's "let them in" message is held for a few seconds, then refused.
+function allow(id) {
+  if (!id || id === myId) return;
+  allowed.add(id);
+  const list = waiters.get(id);
+  if (list) { waiters.delete(id); list.forEach(w => { clearTimeout(w.timer); w.yes(); }); }
+}
+function whenAllowed(id, yes, no) {
+  if (allowed.has(id)) return yes();
+  const list = waiters.get(id) || [];
+  waiters.set(id, list);
+  const w = { yes, timer: setTimeout(() => {
+    const l = waiters.get(id);
+    if (l) { const i = l.indexOf(w); if (i >= 0) l.splice(i, 1); if (!l.length) waiters.delete(id); }
+    no();
+  }, 6000) };
+  list.push(w);
+}
+
+/* ---------------- tiles and layout ---------------- */
 function layout() {
-  const grid = $("grid"), n = grid.children.length;
-  const portrait = innerWidth < innerHeight;
-  let cols = Math.ceil(Math.sqrt(n));
-  if (portrait) cols = n <= 2 ? 1 : 2;
-  const rows = Math.ceil(n / cols);
-  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-  grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  const grid = $("grid"), tiles = [...grid.children], n = tiles.length;
+  const box = grid.getBoundingClientRect();
+  const portrait = box.width < box.height;
+  if (pinnedId && !$("tile-" + pinnedId)) { pinnedId = null; autoPinned = false; }
+  const pin = pinnedId && n > 1 ? $("tile-" + pinnedId) : null;
+  tiles.forEach(t => { t.style.gridColumn = ""; t.style.gridRow = ""; t.classList.toggle("pinned", t === pin); });
+
+  if (pin) {                       // one big tile, the rest in a strip
+    const k = n - 1;
+    if (portrait) {
+      grid.style.gridTemplateColumns = `repeat(${k}, minmax(0, 1fr))`;
+      grid.style.gridTemplateRows = "minmax(0, 1fr) minmax(0, 22%)";
+      tiles.forEach(t => { if (t === pin) { t.style.gridColumn = `1 / span ${k}`; t.style.gridRow = "1"; } else t.style.gridRow = "2"; });
+    } else {
+      grid.style.gridTemplateColumns = "minmax(0, 1fr) minmax(0, 22%)";
+      grid.style.gridTemplateRows = `repeat(${k}, minmax(0, 1fr))`;
+      tiles.forEach(t => { if (t === pin) { t.style.gridColumn = "1"; t.style.gridRow = `1 / span ${k}`; } else t.style.gridColumn = "2"; });
+    }
+  } else {
+    let cols = Math.ceil(Math.sqrt(n));
+    if (portrait) cols = n <= 2 ? 1 : 2;
+    const rows = Math.ceil(n / cols);
+    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  }
   $("count").textContent = n + " in call";
-  if (!left) setStatus(n === 1 ? "You're the only one here — send the invite link" : "");
+  $("hostPill").classList.toggle("hidden", !isHost);
+  if (!left && inCall && myId) setStatus(n === 1 ? "You're the only one here — send the invite link" : "");
 }
 addEventListener("resize", layout);
 
@@ -199,6 +326,7 @@ function makeTile(id, label) {
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.id = "tile-" + id;
+  tile.title = "Click to enlarge · double-click for full screen";
   const video = document.createElement("video");
   video.autoplay = true; video.playsInline = true;
   const avatar = document.createElement("div");
@@ -209,22 +337,108 @@ function makeTile(id, label) {
   const name = document.createElement("div");
   name.className = "name";
   name.textContent = label;
-  tile.append(video, avatar, name);
+  const badges = document.createElement("div");
+  badges.className = "badges";
+  const muted = document.createElement("span");
+  muted.className = "badge muted hidden"; muted.textContent = "Muted";
+  const sharing = document.createElement("span");
+  sharing.className = "badge sharing hidden"; sharing.textContent = "Sharing screen";
+  badges.append(sharing, muted);
+  tile.append(video, avatar, name, badges);
+  tile.onclick = () => { pinnedId = pinnedId === id ? null : id; autoPinned = false; layout(); };
+  tile.ondblclick = () => { if (tile.requestFullscreen) tile.requestFullscreen().catch(() => {}); };
   $("grid").appendChild(tile);
   layout();
   return tile;
 }
-function showVideo(tile, on) { tile.querySelector(".avatar").classList.toggle("hidden", on); }
+function paintTile(tile, { video, mic, sharing }) {
+  tile.querySelector(".avatar").classList.toggle("hidden", video);
+  tile.querySelector(".muted").classList.toggle("hidden", mic);
+  tile.querySelector(".sharing").classList.toggle("hidden", !sharing);
+}
+function renderPeer(id) {
+  const tile = $("tile-" + id);
+  if (!tile) return;
+  const st = pstate.get(id);
+  const stream = tile.querySelector("video").srcObject;
+  const hasVideo = !!stream && stream.getVideoTracks().length > 0;
+  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing), mic: st.mic, sharing: st.sharing }
+                     : { video: hasVideo, mic: true, sharing: false });
+}
+function updateLocalTile(force) {
+  const tile = $("tile-me");
+  if (!tile) return;
+  const video = tile.querySelector("video");
+  const src = screenStream || localStream;
+  if (force || video.srcObject !== src) { video.srcObject = null; video.srcObject = src; }
+  const vt = localStream.getVideoTracks()[0];
+  const rear = !!vt && vt.getSettings && vt.getSettings().facingMode === "environment";
+  video.classList.toggle("mirror", !screenStream && !rear);       // mirror only the selfie camera
+  paintTile(tile, { video: !!screenStream || camOn(), mic: micOn(), sharing: !!screenStream });
+}
 
 /* ---------------- what I send to others ---------------- */
-function currentVideoTrack() {
-  return screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
-}
 function outgoingStream() {
-  const tracks = [...localStream.getAudioTracks()];
-  const v = currentVideoTrack();
-  if (v) tracks.push(v);
+  const tracks = [];
+  const audio = mixedTrack || localStream.getAudioTracks()[0];
+  const video = screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+  if (audio) tracks.push(audio);
+  if (video) tracks.push(video);
   return new MediaStream(tracks);
+}
+// Swap the video or audio everyone is receiving from me, without re-dialling anyone.
+async function swapOutgoing(kind, track) {
+  for (const c of calls.values()) {
+    const pc = c.peerConnection;
+    if (!pc) continue;
+    const tr = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === kind);
+    if (tr && tr.sender) try { await tr.sender.replaceTrack(track); } catch (e) { console.warn(e); }
+  }
+}
+function blackTrack() {            // stand-in picture for people with no camera
+  const c = document.createElement("canvas");
+  c.width = 640; c.height = 360;
+  const g = c.getContext("2d");
+  const draw = () => { g.fillStyle = "#1d1630"; g.fillRect(0, 0, c.width, c.height); };
+  draw(); setInterval(draw, 1000);
+  return c.captureStream(5).getVideoTracks()[0];
+}
+
+/* ---------------- status + chat links between people ---------------- */
+function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream }; }
+function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
+function sendState() { broadcast(myState()); updateLocalTile(); }
+
+function wireConn(id, conn, dataAlreadyWired) {
+  const onOpen = () => {
+    peerConns.set(id, conn);
+    try { conn.send(myState()); } catch (e) {}
+    refreshRecipients();
+  };
+  if (conn.open) onOpen(); else conn.on("open", onOpen);
+  if (!dataAlreadyWired) conn.on("data", msg => onPeerMsg(id, msg));
+  conn.on("close", () => { if (peerConns.get(id) === conn) { peerConns.delete(id); refreshRecipients(); } });
+  conn.on("error", err => console.warn("data link error", id, err));
+}
+
+function onPeerMsg(id, msg) {
+  if (!msg || typeof msg !== "object") return;
+  if (msg.t === "state") {
+    const before = pstate.get(id);
+    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing };
+    pstate.set(id, now);
+    renderPeer(id);
+    // Put a shared screen in the big slot automatically.
+    if (now.sharing && !(before && before.sharing) && (!pinnedId || autoPinned)) { pinnedId = id; autoPinned = true; layout(); toast(nameOf(id) + " is sharing their screen"); }
+    if (!now.sharing && before && before.sharing && pinnedId === id && autoPinned) { pinnedId = null; autoPinned = false; layout(); }
+  } else if (msg.t === "chat") {
+    addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
+  } else if (msg.t === "admit") {
+    if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
+  } else if (msg.t === "bye") {
+    const c = calls.get(id);
+    if (c) dropPeer(id, c);
+  }
 }
 
 /* ---------------- calls between people ---------------- */
@@ -234,6 +448,7 @@ function wireCall(id, c) {
   if (!tile) tile = makeTile(id, nameOf(id));
   tile.querySelector(".name").textContent = nameOf(id);
   tile.querySelector(".avatar span").textContent = (nameOf(id).trim()[0] || "?").toUpperCase();
+  refreshRecipients();
 
   c.on("stream", stream => {
     if (calls.get(id) !== c) return;
@@ -242,7 +457,7 @@ function wireCall(id, c) {
       if (!video.srcObject) toast(nameOf(id) + " joined");
       video.srcObject = stream;
     }
-    showVideo(tile, stream.getVideoTracks().length > 0);
+    renderPeer(id);
   });
   c.on("close", () => dropPeer(id, c));
   c.on("error", err => console.warn("call error", id, err));
@@ -262,19 +477,27 @@ function dropPeer(id, c) {
   if (calls.get(id) !== c) return;       // already replaced or removed
   calls.delete(id);
   try { c.close(); } catch (e) {}
+  const dc = peerConns.get(id);
+  peerConns.delete(id);
+  if (dc) try { dc.close(); } catch (e) {}
+  pstate.delete(id);
+  allowed.delete(id);
   const tile = $("tile-" + id);
   if (tile) { tile.remove(); if (!left) toast(nameOf(id) + " left"); }
+  refreshRecipients();
   layout();
 }
 
 function callPeer(id) {
   if (id === myId || calls.has(id)) return;
+  allow(id);
   wireCall(id, me.call(id, outgoingStream(), { metadata: { name: myName } }));
+  if (!peerConns.has(id)) wireConn(id, me.connect(id, { reliable: true, metadata: { name: myName } }));
 }
 
-function onIncomingCall(c) {
+function acceptCall(c) {
   const id = c.peer;
-  if (c.metadata && c.metadata.name) names.set(id, String(c.metadata.name).slice(0, 24));
+  if (c.metadata && c.metadata.name) names.set(id, clean(c.metadata.name));
   const existing = calls.get(id);
   if (existing) {
     // We both called each other at the same moment: keep the call from the smaller ID.
@@ -286,11 +509,14 @@ function onIncomingCall(c) {
   wireCall(id, c);
 }
 
-/* ---------------- the front desk (who is in the room) ---------------- */
+/* ---------------- host: who is in the room, and who may join ---------------- */
 function clearLobby() {
   clearTimeout(lobbyTimer); clearTimeout(lobbyWait);
   const l = lobby, lc = lobbyConn;
-  lobby = null; lobbyConn = null; lobbyConns.clear();
+  lobby = null; lobbyConn = null; isHost = false;
+  lobbyConns.clear();
+  for (const k of knocks.values()) k.el.remove();
+  knocks.clear();
   if (l) try { l.destroy(); } catch (e) {}
   if (lc) try { lc.close(); } catch (e) {}
 }
@@ -298,35 +524,105 @@ function scheduleLobby(delay) {
   clearTimeout(lobbyTimer);
   lobbyTimer = setTimeout(enterLobby, delay);
 }
+// People already in the call take over quickly when the host leaves;
+// people still waiting outside hold back so they don't grab the host seat.
+const takeoverDelay = () => calls.size > 0 ? 300 + Math.random() * 1500 : 4000 + Math.random() * 2000;
 
-// Try to become the front desk. If someone already is, ask them who is here.
+function roster(exceptId) {
+  const m = new Map([[myId, myName]]);
+  for (const id of calls.keys()) m.set(id, nameOf(id));
+  for (const id of lobbyConns.keys()) m.set(id, nameOf(id));
+  m.delete(exceptId);
+  return m;
+}
+
+function admit(conn, name, alreadyKnown) {
+  const id = conn.peer;
+  const members = roster(id);
+  if (!alreadyKnown && members.size >= MAX_PEOPLE) { try { conn.send({ type: "full" }); } catch (e) {} return; }
+  if (name) names.set(id, name);
+  allow(id);
+  if (!alreadyKnown) {             // tell everyone in the call that this person may connect
+    broadcast({ t: "admit", id, name });
+    for (const c of lobbyConns.values()) if (c.open) try { c.send({ type: "admit", id, name }); } catch (e) {}
+  }
+  lobbyConns.set(id, conn);
+  try { conn.send({ type: "members", members: [...members].map(([mid, mname]) => ({ id: mid, name: mname })) }); } catch (e) {}
+}
+
+function removeKnock(id, conn) {
+  const k = knocks.get(id);
+  if (!k || (conn && k.conn !== conn)) return;
+  k.el.remove();
+  knocks.delete(id);
+}
+function addKnock(conn, name) {
+  const id = conn.peer;
+  removeKnock(id);
+  const el = document.createElement("div");
+  el.className = "knock";
+  const text = document.createElement("div");
+  const b = document.createElement("b");
+  b.textContent = name;
+  text.append(b, " wants to join");
+  const row = document.createElement("div");
+  row.className = "row";
+  const yes = document.createElement("button");
+  yes.className = "yes"; yes.textContent = "Admit";
+  const no = document.createElement("button");
+  no.className = "no"; no.textContent = "Deny";
+  yes.onclick = () => { removeKnock(id); admit(conn, name, false); };
+  no.onclick = () => {
+    removeKnock(id);
+    try { conn.send({ type: "denied" }); } catch (e) {}
+    setTimeout(() => { try { conn.close(); } catch (e) {} }, 800);
+  };
+  row.append(yes, no);
+  el.append(text, row);
+  $("knocks").appendChild(el);
+  knocks.set(id, { conn, el });
+  toast(name + " wants to join");
+}
+
+// Try to become the host. If someone already is, ask them to let me in.
 function enterLobby() {
   if (left || !myId) return;
   clearLobby();
   const l = new Peer(LOBBY_ID);
   lobby = l;
 
+  l.on("open", () => {
+    if (lobby !== l) return;
+    isHost = true;
+    const first = !inCall;
+    enterCallUI();
+    toast(first ? "You're the host — you approve who joins" : "You're now the host — you approve who joins");
+    layout();
+  });
+
   l.on("connection", conn => {
     conn.on("open", () => {
-      const members = new Map([[myId, myName]]);
-      for (const id of calls.keys()) members.set(id, nameOf(id));
-      for (const id of lobbyConns.keys()) members.set(id, nameOf(id));
-      members.delete(conn.peer);
-      if (members.size >= MAX_PEOPLE) { conn.send({ type: "full" }); return; }
-      const n = conn.metadata && conn.metadata.name;
-      if (n) names.set(conn.peer, String(n).slice(0, 24));
-      lobbyConns.set(conn.peer, conn);
-      conn.send({ type: "members", members: [...members].map(([id, name]) => ({ id, name })) });
+      if (lobby !== l) return;
+      const id = conn.peer;
+      const name = clean(conn.metadata && conn.metadata.name);
+      if (calls.has(id) || allowed.has(id)) { admit(conn, name, true); return; }   // already in the call
+      if (roster(id).size >= MAX_PEOPLE) { try { conn.send({ type: "full" }); } catch (e) {} return; }
+      addKnock(conn, name);
+      try { conn.send({ type: "waiting" }); } catch (e) {}
     });
-    conn.on("close", () => { if (lobbyConns.get(conn.peer) === conn) lobbyConns.delete(conn.peer); });
+    conn.on("close", () => {
+      if (lobbyConns.get(conn.peer) === conn) lobbyConns.delete(conn.peer);
+      removeKnock(conn.peer, conn);
+    });
   });
 
   l.on("error", err => {
     if (lobby !== l) return;
-    lobby = null;
+    lobby = null; isHost = false;
     try { l.destroy(); } catch (e) {}
-    if (err.type === "unavailable-id") askLobby();     // someone else is the front desk
+    if (err.type === "unavailable-id") askLobby();     // someone else is the host
     else scheduleLobby(3000);
+    layout();
   });
   l.on("disconnected", () => { if (lobby === l && !l.destroyed) l.reconnect(); });
 }
@@ -339,20 +635,31 @@ function askLobby() {
 
   conn.on("data", msg => {
     if (lobbyConn !== conn || !msg) return;
-    if (msg.type === "full") { leaveCall("This call is full (" + MAX_PEOPLE + " people max)."); return; }
-    if (msg.type === "members") {
+    if (msg.type === "waiting") {
       answered = true;
-      for (const m of msg.members) {
-        names.set(m.id, String(m.name || "Guest").slice(0, 24));
+      if (!inCall) { $("joinSub").textContent = "Asked to join. Waiting for the host to let you in…"; $("joinBtn").textContent = "Waiting for host…"; }
+    } else if (msg.type === "denied") {
+      leaveCall("The host didn't let you in.");
+    } else if (msg.type === "full") {
+      leaveCall("This call is full (" + MAX_PEOPLE + " people max).");
+    } else if (msg.type === "admit") {
+      if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
+    } else if (msg.type === "members") {
+      answered = true;
+      enterCallUI();
+      for (const m of msg.members || []) {
+        if (!m || typeof m.id !== "string") continue;
+        names.set(m.id, clean(m.name));
         callPeer(m.id);
       }
+      layout();
     }
   });
-  // If the front desk goes away, someone (maybe me) takes over.
+  // If the host goes away, someone in the call takes over.
   const lost = () => {
     if (lobbyConn !== conn || left) return;
     lobbyConn = null;
-    scheduleLobby(300 + Math.random() * 1500);
+    scheduleLobby(takeoverDelay());
   };
   conn.on("close", lost);
   conn.on("error", lost);
@@ -368,8 +675,19 @@ function startPeer() {
   if (left) return;
   const p = new Peer();
   me = p;
-  p.on("open", id => { myId = id; setStatus(""); layout(); enterLobby(); });
-  p.on("call", onIncomingCall);
+  p.on("open", id => { myId = id; enterLobby(); });
+  p.on("call", c => whenAllowed(c.peer, () => acceptCall(c), () => { try { c.close(); } catch (e) {} }));
+  p.on("connection", conn => {
+    const id = conn.peer, early = [];
+    let live = false;
+    conn.on("data", m => live ? onPeerMsg(id, m) : early.push(m));
+    whenAllowed(id, () => {
+      if (conn.metadata && conn.metadata.name && !names.has(id)) names.set(id, clean(conn.metadata.name));
+      live = true;
+      wireConn(id, conn, true);
+      early.forEach(m => onPeerMsg(id, m));
+    }, () => { try { conn.close(); } catch (e) {} });
+  });
   p.on("disconnected", () => { if (me === p && !left && !p.destroyed) p.reconnect(); });
   p.on("error", err => {
     if (me !== p || left) return;
@@ -380,8 +698,8 @@ function startPeer() {
       return;
     }
     console.warn(err);
-    if (!myId) { setStatus("Connecting…"); try { p.destroy(); } catch (e) {} setTimeout(startPeer, 3000); }
-    else setStatus("Connection problem — reconnecting…");
+    if (!myId) { try { p.destroy(); } catch (e) {} setTimeout(startPeer, 3000); }
+    else if (inCall) setStatus("Connection problem — reconnecting…");
   });
 }
 
@@ -391,124 +709,252 @@ async function initPreview() {
     $("previewMsg").textContent = "Camera needs https:// — open this page from its hosted link.";
     return;
   }
+  const audio = { echoCancellation: true, noiseSuppression: true };
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video: { ...VIDEO, facingMode: "user" }, audio });
   } catch (e1) {
     try {       // no camera? join with microphone only
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream = await navigator.mediaDevices.getUserMedia({ audio });
+      localStream.addTrack(blackTrack());
+      placeholderCam = true;
       $("previewMsg").textContent = "No camera found — you'll join with audio only.";
     } catch (e2) {
       $("previewMsg").textContent = "Couldn't open camera or microphone. Allow access in the browser and reload.";
       return;
     }
   }
-  if (localStream.getVideoTracks().length) {
+  if (!placeholderCam) {
     $("preview").srcObject = localStream;
     $("previewMsg").classList.add("hidden");
   }
   $("joinBtn").disabled = false;
 }
 
-function joinCall() {
-  myName = $("nameInput").value.trim().slice(0, 24) || "Guest";
+function requestJoin() {
+  myName = clean($("nameInput").value);
   try { localStorage.setItem("gvc-name", myName); } catch (e) {}
+  $("joinBtn").disabled = true;
+  $("joinBtn").textContent = "Connecting…";
+  $("nameInput").disabled = true;
+  startPeer();
+}
+
+async function refreshCams() {
+  let n = 0;
+  try { n = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput").length; } catch (e) {}
+  $("flip").classList.toggle("hidden", placeholderCam || n < 2);
+}
+
+function enterCallUI() {
+  if (inCall || left) return;
+  inCall = true;
   $("join").classList.add("hidden");
   $("call").classList.remove("hidden");
-
   const tile = makeTile("me", myName + " (You)");
-  tile.classList.add("me");
-  const video = tile.querySelector("video");
-  video.muted = true;
-  video.classList.add("mirror");
-  video.srcObject = localStream;
-  const hasCam = localStream.getVideoTracks().length > 0;
-  showVideo(tile, hasCam);
-  if (!hasCam) { $("cam").classList.add("hidden"); $("share").classList.add("hidden"); }
+  tile.querySelector("video").muted = true;
+  updateLocalTile(true);
+  if (placeholderCam) $("cam").classList.add("hidden");
   if (!navigator.mediaDevices.getDisplayMedia) $("share").classList.add("hidden");
-
-  setStatus("Connecting…");
-  startPeer();
+  refreshCams();
+  layout();
 }
 
 function leaveCall(message) {
   if (left) return;
   left = true;
+  broadcast({ t: "bye" });
   clearLobby();
-  for (const c of calls.values()) try { c.close(); } catch (e) {}
-  calls.clear();
-  if (me) try { me.destroy(); } catch (e) {}
+  const p = me;
+  setTimeout(() => {                       // give the goodbye a moment to go out
+    for (const c of calls.values()) try { c.close(); } catch (e) {}
+    calls.clear();
+    if (p) try { p.destroy(); } catch (e) {}
+  }, 300);
   for (const s of [localStream, screenStream]) if (s) s.getTracks().forEach(t => t.stop());
+  if (audioCtx) try { audioCtx.close(); } catch (e) {}
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   $("call").classList.add("hidden");
+  $("chat").classList.add("hidden");
   $("join").classList.remove("hidden");
   $("previewWrap").classList.add("hidden");
   $("nameInput").classList.add("hidden");
-  document.querySelector("label[for=nameInput]").classList.add("hidden");
+  $("nameLabel").classList.add("hidden");
   $("joinSub").textContent = message || "You left the call.";
   $("joinBtn").textContent = "Rejoin";
   $("joinBtn").disabled = false;
   $("joinBtn").onclick = () => location.reload();
 }
 
-/* ---------------- controls ---------------- */
+/* ---------------- mic / camera / switch camera ---------------- */
 $("mic").onclick = () => {
   const t = localStream.getAudioTracks()[0];
   if (!t) return;
   t.enabled = !t.enabled;
   $("mic").classList.toggle("off", !t.enabled);
+  sendState();
 };
 $("cam").onclick = () => {
   const t = localStream.getVideoTracks()[0];
-  if (!t) return;
+  if (!t || placeholderCam) return;
   t.enabled = !t.enabled;
   $("cam").classList.toggle("off", !t.enabled);
-  if (!screenStream) showVideo($("tile-me"), t.enabled);
+  sendState();
 };
 
-async function swapOutgoingVideo(track) {
-  for (const c of calls.values()) {
-    const sender = c.peerConnection && c.peerConnection.getSenders().find(s => s.track && s.track.kind === "video");
-    if (sender) try { await sender.replaceTrack(track); } catch (e) { console.warn(e); }
+let flipping = false;
+async function flipCamera() {
+  const old = localStream.getVideoTracks()[0];
+  if (!old || placeholderCam || flipping) return;
+  flipping = true;
+  const wasOn = old.enabled, s = old.getSettings ? old.getSettings() : {};
+  let want;
+  if (s.facingMode) {                       // phone: front <-> back
+    want = { ...VIDEO, facingMode: { exact: s.facingMode === "user" ? "environment" : "user" } };
+  } else {                                  // laptop: next camera in the list
+    const ids = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput").map(d => d.deviceId);
+    const next = ids[(ids.indexOf(s.deviceId) + 1) % ids.length];
+    want = { ...VIDEO, deviceId: { exact: next } };
   }
+  old.stop();                               // phones can only open one camera at a time
+  let fresh = null;
+  try { fresh = (await navigator.mediaDevices.getUserMedia({ video: want })).getVideoTracks()[0]; }
+  catch (e) {
+    try { fresh = (await navigator.mediaDevices.getUserMedia({ video: s.deviceId ? { ...VIDEO, deviceId: { exact: s.deviceId } } : VIDEO })).getVideoTracks()[0]; toast("Couldn't switch camera"); }
+    catch (e2) { fresh = blackTrack(); placeholderCam = true; $("cam").classList.add("hidden"); $("flip").classList.add("hidden"); toast("Camera stopped working"); }
+  }
+  fresh.enabled = wasOn;
+  localStream.removeTrack(old);
+  localStream.addTrack(fresh);
+  if (!screenStream) await swapOutgoing("video", fresh);
+  updateLocalTile(true);
+  sendState();
+  flipping = false;
 }
+$("flip").onclick = flipCamera;
+
+/* ---------------- screen sharing (with sound) ---------------- */
 async function stopSharing() {
   if (!screenStream) return;
   screenStream.getTracks().forEach(t => t.stop());
   screenStream = null;
-  const camTrack = localStream.getVideoTracks()[0];
-  await swapOutgoingVideo(camTrack);
-  const tile = $("tile-me"), video = tile.querySelector("video");
-  video.srcObject = localStream;
-  video.classList.add("mirror");
-  tile.classList.remove("screen");
-  showVideo(tile, camTrack.enabled);
+  await swapOutgoing("video", localStream.getVideoTracks()[0]);
+  if (mixedTrack) {
+    mixedTrack = null;
+    await swapOutgoing("audio", localStream.getAudioTracks()[0]);
+    if (audioCtx) { try { audioCtx.close(); } catch (e) {} audioCtx = null; }
+  }
   $("share").classList.remove("on");
+  sendState();
 }
 $("share").onclick = async () => {
   if (screenStream) { stopSharing(); return; }
-  try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-  } catch (e) { screenStream = null; return; }     // user cancelled
-  const track = screenStream.getVideoTracks()[0];
-  track.onended = stopSharing;                     // browser's own "Stop sharing" button
-  await swapOutgoingVideo(track);
-  const tile = $("tile-me"), video = tile.querySelector("video");
-  video.srcObject = screenStream;
-  video.classList.remove("mirror");
-  tile.classList.add("screen");
-  showVideo(tile, true);
+  let s;
+  try { s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); }
+  catch (e) { return; }                               // user cancelled
+  screenStream = s;
+  const track = s.getVideoTracks()[0];
+  track.onended = stopSharing;                        // browser's own "Stop sharing" button
+  await swapOutgoing("video", track);
+
+  const mic = localStream.getAudioTracks()[0];
+  if (s.getAudioTracks().length) {                    // mix the screen's sound with my mic
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const dest = audioCtx.createMediaStreamDestination();
+      if (mic) audioCtx.createMediaStreamSource(new MediaStream([mic])).connect(dest);
+      audioCtx.createMediaStreamSource(new MediaStream(s.getAudioTracks())).connect(dest);
+      mixedTrack = dest.stream.getAudioTracks()[0];
+      await swapOutgoing("audio", mixedTrack);
+    } catch (e) { console.warn(e); mixedTrack = null; }
+  } else {
+    toast("Sharing without sound — tick \"Also share audio\" in the picker to include it");
+  }
   $("share").classList.add("on");
+  sendState();
 };
 
+/* ---------------- chat ---------------- */
+function refreshRecipients() {
+  const sel = $("chatTo"), keep = sel.value;
+  sel.textContent = "";
+  const all = document.createElement("option");
+  all.value = "all"; all.textContent = "Everyone";
+  sel.appendChild(all);
+  for (const id of calls.keys()) {
+    const o = document.createElement("option");
+    o.value = id; o.textContent = nameOf(id) + " (private)";
+    sel.appendChild(o);
+  }
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : "all";
+}
+function addChat(fromId, text, pm, toId) {
+  if (!text) return;
+  $("noMsgs").classList.add("hidden");
+  const mine = fromId === "me";
+  const el = document.createElement("div");
+  el.className = "msg" + (mine ? " mine" : "") + (pm ? " pm" : "");
+  const who = document.createElement("div");
+  who.className = "who";
+  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  who.textContent = (mine ? (pm ? "You → " + nameOf(toId) + " · private" : "You")
+                          : nameOf(fromId) + (pm ? " · private to you" : "")) + " · " + time;
+  const txt = document.createElement("div");
+  txt.className = "txt";
+  txt.textContent = text;
+  el.append(who, txt);
+  $("msgs").appendChild(el);
+  $("msgs").scrollTop = $("msgs").scrollHeight;
+  if (!mine && !chatOpen) {
+    unread++;
+    $("badge").textContent = unread;
+    $("badge").classList.remove("hidden");
+    toast((pm ? "Private message from " : "Message from ") + nameOf(fromId));
+  }
+}
+function toggleChat(open) {
+  chatOpen = open;
+  $("chat").classList.toggle("hidden", !open);
+  $("chatBtn").classList.toggle("on", open);
+  if (open) { unread = 0; $("badge").classList.add("hidden"); $("chatInput").focus(); $("msgs").scrollTop = $("msgs").scrollHeight; }
+  layout();
+}
+$("chatBtn").onclick = () => toggleChat(!chatOpen);
+$("chatClose").onclick = () => toggleChat(false);
+$("chatForm").onsubmit = e => {
+  e.preventDefault();
+  const text = $("chatInput").value.trim().slice(0, 500);
+  if (!text) return;
+  const to = $("chatTo").value;
+  if (to === "all") {
+    broadcast({ t: "chat", text, pm: false });
+    addChat("me", text, false);
+  } else {
+    const c = peerConns.get(to);
+    if (!c || !c.open) { toast("Can't reach " + nameOf(to) + " right now"); return; }
+    c.send({ t: "chat", text, pm: true });           // goes only to that one person
+    addChat("me", text, true, to);
+  }
+  $("chatInput").value = "";
+};
+
+/* ---------------- other buttons ---------------- */
 $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText(location.href); toast("Invite link copied"); }
   catch (e) { prompt("Copy this link:", location.href); }
 };
 $("leave").onclick = () => leaveCall();
-$("joinBtn").onclick = joinCall;
+$("joinBtn").onclick = requestJoin;
 $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("joinBtn").disabled) $("joinBtn").click(); });
 
-// Leave cleanly when the tab is closed so others see it straight away.
+document.querySelectorAll(".know").forEach(btn => btn.onclick = () => {
+  const show = document.querySelector(".more").classList.contains("hidden");
+  document.querySelectorAll(".more").forEach(m => m.classList.toggle("hidden", !show));
+  document.querySelectorAll(".know").forEach(b => b.textContent = show ? "Show less" : "Know more");
+});
+
+// Say goodbye when the tab is closed so others see it straight away.
 addEventListener("pagehide", () => {
+  broadcast({ t: "bye" });
   if (lobby) try { lobby.destroy(); } catch (e) {}
   if (me) try { me.destroy(); } catch (e) {}
 });
