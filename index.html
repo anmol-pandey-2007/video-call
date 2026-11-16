@@ -210,6 +210,10 @@
         <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
         <span class="lbl">Invite</span>
       </button>
+      <button class="ctl leave hidden" id="endAll" title="End call for everyone">
+        <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
+        <span class="lbl" id="endLbl">End for all</span>
+      </button>
       <button class="ctl leave" id="leave" title="Leave call">
         <svg viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"/></svg>
         <span class="lbl">Leave</span>
@@ -318,6 +322,7 @@ function layout() {
   }
   $("count").textContent = n + " in call";
   $("hostPill").classList.toggle("hidden", !isHost);
+  $("endAll").classList.toggle("hidden", !isHost);        // only the host can end the call for everyone
   if (!left && inCall && myId) setStatus(n === 1 ? "You're the only one here — send the invite link" : "");
 }
 addEventListener("resize", layout);
@@ -435,6 +440,8 @@ function onPeerMsg(id, msg) {
     addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
   } else if (msg.t === "admit") {
     if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
+  } else if (msg.t === "end") {
+    leaveCall("The host ended the call for everyone.");
   } else if (msg.t === "bye") {
     const c = calls.get(id);
     if (c) dropPeer(id, c);
@@ -638,6 +645,8 @@ function askLobby() {
     if (msg.type === "waiting") {
       answered = true;
       if (!inCall) { $("joinSub").textContent = "Asked to join. Waiting for the host to let you in…"; $("joinBtn").textContent = "Waiting for host…"; }
+    } else if (msg.type === "ended") {
+      leaveCall("The host ended the call.");
     } else if (msg.type === "denied") {
       leaveCall("The host didn't let you in.");
     } else if (msg.type === "full") {
@@ -943,6 +952,22 @@ $("copy").onclick = async () => {
   catch (e) { prompt("Copy this link:", location.href); }
 };
 $("leave").onclick = () => leaveCall();
+
+// Host only: end the call for everyone. Needs a second click so it can't happen by accident.
+let endArmed = null;
+$("endAll").onclick = () => {
+  if (!isHost) return;
+  if (!endArmed) {
+    $("endLbl").textContent = "Click again to end";
+    toast("Click again to end the call for everyone");
+    endArmed = setTimeout(() => { endArmed = null; $("endLbl").textContent = "End for all"; }, 4000);
+    return;
+  }
+  clearTimeout(endArmed); endArmed = null;
+  broadcast({ t: "end" });
+  for (const k of knocks.values()) try { k.conn.send({ type: "ended" }); } catch (e) {}
+  setTimeout(() => leaveCall("You ended the call for everyone."), 300);
+};
 $("joinBtn").onclick = requestJoin;
 $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("joinBtn").disabled) $("joinBtn").click(); });
 
@@ -961,7 +986,6 @@ addEventListener("pagehide", () => {
 
 try { $("nameInput").value = localStorage.getItem("gvc-name") || ""; } catch (e) {}
 initPreview();
-      
 </script>
 </body>
 </html>
