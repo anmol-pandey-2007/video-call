@@ -1,196 +1,520 @@
 <!DOCTYPE html>
+<!-- Group Video Call — © 2026 Anmol Pandey. All rights reserved. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Video Call</title>
+<meta name="author" content="Anmol Pandey">
+<meta name="copyright" content="© 2026 Anmol Pandey">
+<title>Group Video Call</title>
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <style>
+  :root {
+    --bg: #0e1116; --panel: #171b22; --panel2: #1f2530; --line: #2a313d;
+    --text: #e8ecf1; --muted: #8e99a8; --accent: #4f8cff; --danger: #e5484d;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, sans-serif; background: #14161a; color: #eee;
-         height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-  header { padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  #status { color: #9aa4b2; font-size: 14px; }
-  #stage { flex: 1; position: relative; background: #000; min-height: 0; }
-  #remote { width: 100%; height: 100%; object-fit: contain; }
-  #local { position: absolute; right: 16px; bottom: 16px; width: 22%; min-width: 110px;
-           border-radius: 8px; border: 2px solid #333; transform: scaleX(-1); background: #222; }
-  footer { padding: 12px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  button { padding: 10px 16px; border: 0; border-radius: 8px; background: #2b303a; color: #eee;
-           font-size: 15px; cursor: pointer; }
-  button:hover { background: #3a414e; }
-  button.off { background: #7a2e2e; }
-  #hangup { background: #c0392b; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+         background: var(--bg); color: var(--text); overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; }
+  .hidden { display: none !important; }
+  .copyright { color: var(--muted); font-size: 12px; letter-spacing: .2px; }
+
+  /* ---------- Join screen ---------- */
+  #join { height: 100dvh; display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 18px; padding: 20px; }
+  .card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line);
+          border-radius: 18px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+          background: linear-gradient(135deg, var(--accent), #8b5cf6); }
+  .logo svg { width: 20px; height: 20px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--muted); font-size: 14px; margin: 4px 0 16px; }
+  #previewWrap { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 12px;
+                 overflow: hidden; margin-bottom: 14px; }
+  #preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #previewMsg { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+                text-align: center; color: var(--muted); font-size: 14px; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+  input[type=text] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+                     background: var(--panel2); color: var(--text); font: inherit; outline: none; }
+  input[type=text]:focus { border-color: var(--accent); }
+  .primary { width: 100%; margin-top: 14px; padding: 13px; border-radius: 10px; background: var(--accent);
+             color: #fff; font-weight: 600; font-size: 15px; }
+  .primary:disabled { opacity: .5; cursor: not-allowed; }
+  .primary:not(:disabled):hover { filter: brightness(1.1); }
+
+  /* ---------- Call screen ---------- */
+  #call { height: 100dvh; display: flex; flex-direction: column; }
+  #topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+  #topbar .title { font-weight: 600; }
+  #count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
+           padding: 3px 10px; font-size: 13px; color: var(--muted); }
+  #status { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; }
+  #grid { flex: 1; min-height: 0; display: grid; gap: 10px; padding: 0 12px; }
+  .tile { position: relative; background: #000; border-radius: 14px; overflow: hidden;
+          border: 1px solid var(--line); min-height: 0; min-width: 0; }
+  .tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile.me video.mirror { transform: scaleX(-1); }
+  .tile.screen video { object-fit: contain; }
+  .tile .avatar { position: absolute; inset: 0; display: grid; place-items: center; background: var(--panel2); }
+  .tile .avatar span { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center;
+                       font-size: 34px; font-weight: 600; background: linear-gradient(135deg, var(--accent), #8b5cf6); }
+  .tile .name { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 8px;
+                background: rgba(0,0,0,.55); backdrop-filter: blur(6px); font-size: 13px;
+                max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #bar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 10px; }
+  #controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+              background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
+  .ctl { position: relative; height: 46px; min-width: 46px; padding: 0 14px; border-radius: 999px; background: var(--panel2);
+         display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
+  .ctl:hover { background: #2a3240; }
+  .ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;
+             stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .ctl.off { background: var(--danger); }
+  .ctl.off::after { content: ""; position: absolute; left: 13px; top: 22px; width: 22px; height: 2px;
+                    background: #fff; transform: rotate(-45deg); border-radius: 2px; }
+  .ctl.on { background: var(--accent); }
+  .ctl.leave { background: var(--danger); font-weight: 600; }
+  .ctl.leave:hover { filter: brightness(1.1); }
+  #toasts { position: fixed; top: 56px; left: 50%; transform: translateX(-50%); display: flex;
+            flex-direction: column; gap: 8px; align-items: center; pointer-events: none; z-index: 10; }
+  .toast { background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px;
+           font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); animation: pop .2s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 600px) {
+    .ctl .lbl { display: none; }
+    .ctl { padding: 0; width: 46px; }
+    .ctl.leave { width: auto; padding: 0 16px; }
+    .ctl.leave .lbl { display: inline; }
+    #grid { gap: 6px; padding: 0 6px; }
+    .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <strong>Video Call</strong>
-  <span id="status">Starting camera…</span>
-</header>
 
-<div id="stage">
-  <video id="remote" autoplay playsinline></video>
-  <video id="local" autoplay playsinline muted></video>
+<!-- ================= Join screen ================= -->
+<div id="join">
+  <div class="card">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg></div>
+      <h1>Group Video Call</h1>
+    </div>
+    <p class="sub" id="joinSub">Check your camera, enter your name, and join.</p>
+    <div id="previewWrap">
+      <video id="preview" autoplay playsinline muted></video>
+      <div id="previewMsg">Starting camera…</div>
+    </div>
+    <label for="nameInput">Your name</label>
+    <input type="text" id="nameInput" maxlength="24" placeholder="e.g. Anmol" autocomplete="off">
+    <button class="primary" id="joinBtn" disabled>Join call</button>
+  </div>
+  <div class="copyright">© 2026 Anmol Pandey. All rights reserved.</div>
 </div>
 
-<footer>
-  <button id="copy">Copy invite link</button>
-  <button id="mic">Mute</button>
-  <button id="cam">Camera off</button>
-  <button id="hangup">Hang up</button>
-</footer>
+<!-- ================= Call screen ================= -->
+<div id="call" class="hidden">
+  <div id="topbar">
+    <span class="title">Group Video Call</span>
+    <span id="count">1 in call</span>
+    <span id="status"></span>
+  </div>
+  <div id="grid"></div>
+  <div id="bar">
+    <div id="controls">
+      <button class="ctl" id="mic" title="Microphone">
+        <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="ctl" id="cam" title="Camera">
+        <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>
+      </button>
+      <button class="ctl" id="share" title="Share screen">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+        <span class="lbl">Share screen</span>
+      </button>
+      <button class="ctl" id="copy" title="Copy invite link">
+        <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+        <span class="lbl" id="copyLbl">Invite</span>
+      </button>
+      <button class="ctl leave" id="leave" title="Leave call"><span class="lbl">Leave</span></button>
+    </div>
+    <div class="copyright">© 2026 Anmol Pandey</div>
+  </div>
+</div>
+<div id="toasts"></div>
 
 <script>
+/* Group Video Call — © 2026 Anmol Pandey. All rights reserved. */
 const $ = id => document.getElementById(id);
-const setStatus = t => $("status").textContent = t;
+const MAX_PEOPLE = 6;   // everyone connects directly to everyone, so keep groups small
 
 // The room code lives in the URL (#abc123), so the link itself is the invite.
 if (!location.hash) location.hash = Math.random().toString(36).slice(2, 10);
-const room = location.hash.slice(1);
+const ROOM = location.hash.slice(1);
+// One person at a time holds this fixed ID and acts as the room's "front desk":
+// it tells each newcomer who is already in the call.
+const LOBBY_ID = "ap-group-call-" + ROOM;
 
-// The first person to open the link registers under this fixed ID and waits.
-// The second person finds that ID is taken, so they know to call it instead.
-const HOST_ID = "simple-video-call-" + room;
+let myName = "", myId = null, left = false;
+let localStream = null;        // camera + mic
+let screenStream = null;       // set while sharing the screen
+let me = null;                 // my PeerJS connection (random ID)
+let lobby = null;              // set only if I am the front desk
+let lobbyConn = null;          // my link to the front desk (if I am not it)
+let lobbyTimer = null, lobbyWait = null;
+const lobbyConns = new Map();  // front desk only: id -> data connection
+const calls = new Map();       // id -> media call
+const names = new Map();       // id -> display name
 
-let peer = null, call = null, localStream = null;
-let wasConnected = false, hungUp = false, callTimer = null;
+/* ---------------- small UI helpers ---------------- */
+function toast(text) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = text;
+  $("toasts").appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+const setStatus = t => $("status").textContent = t;
+const nameOf = id => names.get(id) || "Guest";
 
-function resetPeer() {
-  clearTimeout(callTimer);
-  if (call) { try { call.close(); } catch (e) {} call = null; }
-  if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
-  $("remote").srcObject = null;
-  wasConnected = false;
+function layout() {
+  const grid = $("grid"), n = grid.children.length;
+  const portrait = innerWidth < innerHeight;
+  let cols = Math.ceil(Math.sqrt(n));
+  if (portrait) cols = n <= 2 ? 1 : 2;
+  const rows = Math.ceil(n / cols);
+  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  $("count").textContent = n + " in call";
+  if (!left) setStatus(n === 1 ? "You're the only one here — send the invite link" : "");
+}
+addEventListener("resize", layout);
+
+function makeTile(id, label) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  tile.id = "tile-" + id;
+  const video = document.createElement("video");
+  video.autoplay = true; video.playsInline = true;
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  const letter = document.createElement("span");
+  letter.textContent = (label.trim()[0] || "?").toUpperCase();
+  avatar.appendChild(letter);
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = label;
+  tile.append(video, avatar, name);
+  $("grid").appendChild(tile);
+  layout();
+  return tile;
+}
+function showVideo(tile, on) { tile.querySelector(".avatar").classList.toggle("hidden", on); }
+
+/* ---------------- what I send to others ---------------- */
+function currentVideoTrack() {
+  return screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+}
+function outgoingStream() {
+  const tracks = [...localStream.getAudioTracks()];
+  const v = currentVideoTrack();
+  if (v) tracks.push(v);
+  return new MediaStream(tracks);
 }
 
-// Called when the other person leaves or the connection drops: go back to waiting.
-function otherSideEnded() {
-  if (hungUp || !wasConnected) return;
-  resetPeer();
-  setStatus("The other person left. Waiting for someone to join…");
-  setTimeout(join, 1500);
-}
+/* ---------------- calls between people ---------------- */
+function wireCall(id, c) {
+  calls.set(id, c);
+  let tile = $("tile-" + id);
+  if (!tile) tile = makeTile(id, nameOf(id));
+  tile.querySelector(".name").textContent = nameOf(id);
+  tile.querySelector(".avatar span").textContent = (nameOf(id).trim()[0] || "?").toUpperCase();
 
-function watchCall(c) {
-  call = c;
   c.on("stream", stream => {
-    clearTimeout(callTimer);
-    $("remote").srcObject = stream;
-    wasConnected = true;
-    setStatus("Connected");
+    if (calls.get(id) !== c) return;
+    const video = tile.querySelector("video");
+    if (video.srcObject !== stream) {
+      if (!video.srcObject) toast(nameOf(id) + " joined");
+      video.srcObject = stream;
+    }
+    showVideo(tile, stream.getVideoTracks().length > 0);
   });
-  c.on("close", otherSideEnded);
-  c.on("error", err => console.error("call error", err));
-  // PeerJS does not always report the other side closing, so watch the connection too.
+  c.on("close", () => dropPeer(id, c));
+  c.on("error", err => console.warn("call error", id, err));
+
+  // PeerJS does not always tell us when someone closes their tab, so watch the link itself.
   const pc = c.peerConnection;
   if (pc) pc.addEventListener("connectionstatechange", () => {
-    if (["disconnected", "failed", "closed"].includes(pc.connectionState)) otherSideEnded();
+    const s = pc.connectionState;
+    if (s === "failed" || s === "closed") dropPeer(id, c);
+    if (s === "disconnected") setTimeout(() => {
+      if (["disconnected", "failed", "closed"].includes(pc.connectionState)) dropPeer(id, c);
+    }, 4000);
   });
 }
 
-function join() {
-  if (hungUp) return;
-  const me = new Peer(HOST_ID);          // try to be the first person in the room
-  peer = me;
+function dropPeer(id, c) {
+  if (calls.get(id) !== c) return;       // already replaced or removed
+  calls.delete(id);
+  try { c.close(); } catch (e) {}
+  const tile = $("tile-" + id);
+  if (tile) { tile.remove(); if (!left) toast(nameOf(id) + " left"); }
+  layout();
+}
 
-  me.on("open", () => setStatus("Waiting for someone to join — send them the invite link"));
+function callPeer(id) {
+  if (id === myId || calls.has(id)) return;
+  wireCall(id, me.call(id, outgoingStream(), { metadata: { name: myName } }));
+}
 
-  me.on("call", incoming => {
-    if (call) { incoming.close(); return; }   // already in a call: room is full
-    incoming.answer(localStream);
-    watchCall(incoming);
+function onIncomingCall(c) {
+  const id = c.peer;
+  if (c.metadata && c.metadata.name) names.set(id, String(c.metadata.name).slice(0, 24));
+  const existing = calls.get(id);
+  if (existing) {
+    // We both called each other at the same moment: keep the call from the smaller ID.
+    if (myId < id) { try { c.close(); } catch (e) {} return; }
+    calls.delete(id);
+    try { existing.close(); } catch (e) {}
+  }
+  c.answer(outgoingStream());
+  wireCall(id, c);
+}
+
+/* ---------------- the front desk (who is in the room) ---------------- */
+function clearLobby() {
+  clearTimeout(lobbyTimer); clearTimeout(lobbyWait);
+  const l = lobby, lc = lobbyConn;
+  lobby = null; lobbyConn = null; lobbyConns.clear();
+  if (l) try { l.destroy(); } catch (e) {}
+  if (lc) try { lc.close(); } catch (e) {}
+}
+function scheduleLobby(delay) {
+  clearTimeout(lobbyTimer);
+  lobbyTimer = setTimeout(enterLobby, delay);
+}
+
+// Try to become the front desk. If someone already is, ask them who is here.
+function enterLobby() {
+  if (left || !myId) return;
+  clearLobby();
+  const l = new Peer(LOBBY_ID);
+  lobby = l;
+
+  l.on("connection", conn => {
+    conn.on("open", () => {
+      const members = new Map([[myId, myName]]);
+      for (const id of calls.keys()) members.set(id, nameOf(id));
+      for (const id of lobbyConns.keys()) members.set(id, nameOf(id));
+      members.delete(conn.peer);
+      if (members.size >= MAX_PEOPLE) { conn.send({ type: "full" }); return; }
+      const n = conn.metadata && conn.metadata.name;
+      if (n) names.set(conn.peer, String(n).slice(0, 24));
+      lobbyConns.set(conn.peer, conn);
+      conn.send({ type: "members", members: [...members].map(([id, name]) => ({ id, name })) });
+    });
+    conn.on("close", () => { if (lobbyConns.get(conn.peer) === conn) lobbyConns.delete(conn.peer); });
   });
 
-  me.on("error", err => {
-    if (peer !== me) return;
-    if (err.type === "unavailable-id") {       // someone is already waiting: call them
-      me.destroy();
-      joinAsCaller();
-    } else {
-      console.error(err);
-      setStatus("Connection problem (" + err.type + "). Retrying…");
-      resetPeer();
-      setTimeout(join, 3000);
+  l.on("error", err => {
+    if (lobby !== l) return;
+    lobby = null;
+    try { l.destroy(); } catch (e) {}
+    if (err.type === "unavailable-id") askLobby();     // someone else is the front desk
+    else scheduleLobby(3000);
+  });
+  l.on("disconnected", () => { if (lobby === l && !l.destroyed) l.reconnect(); });
+}
+
+function askLobby() {
+  if (left) return;
+  const conn = me.connect(LOBBY_ID, { reliable: true, metadata: { name: myName } });
+  lobbyConn = conn;
+  let answered = false;
+
+  conn.on("data", msg => {
+    if (lobbyConn !== conn || !msg) return;
+    if (msg.type === "full") { leaveCall("This call is full (" + MAX_PEOPLE + " people max)."); return; }
+    if (msg.type === "members") {
+      answered = true;
+      for (const m of msg.members) {
+        names.set(m.id, String(m.name || "Guest").slice(0, 24));
+        callPeer(m.id);
+      }
     }
   });
+  // If the front desk goes away, someone (maybe me) takes over.
+  const lost = () => {
+    if (lobbyConn !== conn || left) return;
+    lobbyConn = null;
+    scheduleLobby(300 + Math.random() * 1500);
+  };
+  conn.on("close", lost);
+  conn.on("error", lost);
 
-  me.on("disconnected", () => { if (peer === me && !me.destroyed) me.reconnect(); });
+  clearTimeout(lobbyWait);
+  lobbyWait = setTimeout(() => {
+    if (lobbyConn === conn && !answered) { lobbyConn = null; try { conn.close(); } catch (e) {} scheduleLobby(0); }
+  }, 5000);
 }
 
-function joinAsCaller() {
-  if (hungUp) return;
-  const me = new Peer();                 // random ID
-  peer = me;
-
-  me.on("open", () => {
-    setStatus("Calling…");
-    watchCall(me.call(HOST_ID, localStream));
-    callTimer = setTimeout(() => {
-      if (!wasConnected) setStatus("Couldn't connect. The room may already have two people, or one network is blocking the call.");
-    }, 20000);
-  });
-
-  me.on("error", err => {
-    if (peer !== me) return;
-    console.error(err);
-    resetPeer();
+/* ---------------- my connection ---------------- */
+function startPeer() {
+  if (left) return;
+  const p = new Peer();
+  me = p;
+  p.on("open", id => { myId = id; setStatus(""); layout(); enterLobby(); });
+  p.on("call", onIncomingCall);
+  p.on("disconnected", () => { if (me === p && !left && !p.destroyed) p.reconnect(); });
+  p.on("error", err => {
+    if (me !== p || left) return;
+    const text = String(err.message || "");
     if (err.type === "peer-unavailable") {
-      setTimeout(join, 1500);            // the waiting person vanished: take their place
-    } else {
-      setStatus("Connection problem (" + err.type + "). Retrying…");
-      setTimeout(join, 3000);
+      if (text.includes(LOBBY_ID)) { lobbyConn = null; scheduleLobby(800 + Math.random() * 1200); }
+      else for (const [id, c] of [...calls]) if (text.includes(id)) dropPeer(id, c);
+      return;
     }
+    console.warn(err);
+    if (!myId) { setStatus("Connecting…"); try { p.destroy(); } catch (e) {} setTimeout(startPeer, 3000); }
+    else setStatus("Connection problem — reconnecting…");
   });
 }
 
-async function start() {
+/* ---------------- join / leave ---------------- */
+async function initPreview() {
   if (!navigator.mediaDevices) {
-    setStatus("Camera needs https:// or localhost. Open this page from a hosted link.");
+    $("previewMsg").textContent = "Camera needs https:// — open this page from its hosted link.";
     return;
   }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  } catch (err) {
-    setStatus("Could not open camera/microphone: " + err.message);
-    return;
+  } catch (e1) {
+    try {       // no camera? join with microphone only
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      $("previewMsg").textContent = "No camera found — you'll join with audio only.";
+    } catch (e2) {
+      $("previewMsg").textContent = "Couldn't open camera or microphone. Allow access in the browser and reload.";
+      return;
+    }
   }
-  $("local").srcObject = localStream;
-  setStatus("Connecting…");
-  join();
+  if (localStream.getVideoTracks().length) {
+    $("preview").srcObject = localStream;
+    $("previewMsg").classList.add("hidden");
+  }
+  $("joinBtn").disabled = false;
 }
 
-$("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(location.href); $("copy").textContent = "Copied!"; }
-  catch (e) { prompt("Copy this link:", location.href); }
-  setTimeout(() => $("copy").textContent = "Copy invite link", 1500);
-};
+function joinCall() {
+  myName = $("nameInput").value.trim().slice(0, 24) || "Guest";
+  try { localStorage.setItem("gvc-name", myName); } catch (e) {}
+  $("join").classList.add("hidden");
+  $("call").classList.remove("hidden");
+
+  const tile = makeTile("me", myName + " (You)");
+  tile.classList.add("me");
+  const video = tile.querySelector("video");
+  video.muted = true;
+  video.classList.add("mirror");
+  video.srcObject = localStream;
+  const hasCam = localStream.getVideoTracks().length > 0;
+  showVideo(tile, hasCam);
+  if (!hasCam) { $("cam").classList.add("hidden"); $("share").classList.add("hidden"); }
+  if (!navigator.mediaDevices.getDisplayMedia) $("share").classList.add("hidden");
+
+  setStatus("Connecting…");
+  startPeer();
+}
+
+function leaveCall(message) {
+  if (left) return;
+  left = true;
+  clearLobby();
+  for (const c of calls.values()) try { c.close(); } catch (e) {}
+  calls.clear();
+  if (me) try { me.destroy(); } catch (e) {}
+  for (const s of [localStream, screenStream]) if (s) s.getTracks().forEach(t => t.stop());
+  $("call").classList.add("hidden");
+  $("join").classList.remove("hidden");
+  $("previewWrap").classList.add("hidden");
+  $("nameInput").classList.add("hidden");
+  document.querySelector("label[for=nameInput]").classList.add("hidden");
+  $("joinSub").textContent = message || "You left the call.";
+  $("joinBtn").textContent = "Rejoin";
+  $("joinBtn").disabled = false;
+  $("joinBtn").onclick = () => location.reload();
+}
+
+/* ---------------- controls ---------------- */
 $("mic").onclick = () => {
-  if (!localStream) return;
   const t = localStream.getAudioTracks()[0];
+  if (!t) return;
   t.enabled = !t.enabled;
-  $("mic").textContent = t.enabled ? "Mute" : "Unmute";
   $("mic").classList.toggle("off", !t.enabled);
 };
 $("cam").onclick = () => {
-  if (!localStream) return;
   const t = localStream.getVideoTracks()[0];
+  if (!t) return;
   t.enabled = !t.enabled;
-  $("cam").textContent = t.enabled ? "Camera off" : "Camera on";
   $("cam").classList.toggle("off", !t.enabled);
-};
-$("hangup").onclick = () => {
-  hungUp = true;
-  resetPeer();
-  if (localStream) localStream.getTracks().forEach(t => t.stop());
-  $("local").srcObject = null;
-  setStatus("Call ended. Reload the page to start again.");
+  if (!screenStream) showVideo($("tile-me"), t.enabled);
 };
 
-// Free the room straight away when the tab is closed.
-window.addEventListener("pagehide", () => { if (peer) peer.destroy(); });
+async function swapOutgoingVideo(track) {
+  for (const c of calls.values()) {
+    const sender = c.peerConnection && c.peerConnection.getSenders().find(s => s.track && s.track.kind === "video");
+    if (sender) try { await sender.replaceTrack(track); } catch (e) { console.warn(e); }
+  }
+}
+async function stopSharing() {
+  if (!screenStream) return;
+  screenStream.getTracks().forEach(t => t.stop());
+  screenStream = null;
+  const camTrack = localStream.getVideoTracks()[0];
+  await swapOutgoingVideo(camTrack);
+  const tile = $("tile-me"), video = tile.querySelector("video");
+  video.srcObject = localStream;
+  video.classList.add("mirror");
+  tile.classList.remove("screen");
+  showVideo(tile, camTrack.enabled);
+  $("share").classList.remove("on");
+}
+$("share").onclick = async () => {
+  if (screenStream) { stopSharing(); return; }
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+  } catch (e) { screenStream = null; return; }     // user cancelled
+  const track = screenStream.getVideoTracks()[0];
+  track.onended = stopSharing;                     // browser's own "Stop sharing" button
+  await swapOutgoingVideo(track);
+  const tile = $("tile-me"), video = tile.querySelector("video");
+  video.srcObject = screenStream;
+  video.classList.remove("mirror");
+  tile.classList.add("screen");
+  showVideo(tile, true);
+  $("share").classList.add("on");
+};
 
-start();
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); toast("Invite link copied"); }
+  catch (e) { prompt("Copy this link:", location.href); }
+};
+$("leave").onclick = () => leaveCall();
+$("joinBtn").onclick = joinCall;
+$("nameInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("joinBtn").disabled) $("joinBtn").click(); });
+
+// Leave cleanly when the tab is closed so others see it straight away.
+addEventListener("pagehide", () => {
+  if (lobby) try { lobby.destroy(); } catch (e) {}
+  if (me) try { me.destroy(); } catch (e) {}
+});
+
+try { $("nameInput").value = localStorage.getItem("gvc-name") || ""; } catch (e) {}
+initPreview();
 </script>
 </body>
 </html>
