@@ -155,6 +155,26 @@
   #sizeDot i { display: block; border-radius: 50%; background: currentColor; }
   #handHelp { font-size: 12px; color: var(--muted); text-align: center; }
 
+  /* ---------- Shared whiteboard ---------- */
+  .tile.board { background: #ece6f8; cursor: default; container-type: inline-size; }
+  .tile canvas.wb { width: 100%; height: 100%; object-fit: contain; display: block; touch-action: none; cursor: crosshair; }
+  .tile.board .name { background: rgba(132, 99, 216, .9); }
+  .wbTools { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px;
+             align-items: center; flex-wrap: wrap; justify-content: center; width: max-content;
+             max-width: calc(100% - 16px); background: rgba(255, 255, 255, .96); border: 1px solid var(--line);
+             border-radius: 18px; padding: 5px 8px; box-shadow: 0 6px 18px rgba(80, 55, 150, .18); }
+  .wbTools .dctl { height: 30px; padding: 0 8px; }
+  .wbTools .sw { width: 22px; height: 22px; }
+  .wbSw { display: flex; gap: 5px; }
+  .wbSize { width: 18px; height: 18px; display: grid; place-items: center; }
+  .wbSize i { display: block; border-radius: 50%; background: currentColor; }
+  .wbWho { position: absolute; padding: 2px 8px; border-radius: 8px; font-size: 12px; color: #fff;
+           background: var(--accent); pointer-events: none; white-space: nowrap; }
+  @container (max-width: 330px) { .wbTools { display: none; } }
+  #wbDot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+  #copyTop { display: none; align-items: center; gap: 5px; background: var(--panel); }
+  #copyTop svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
   @media (max-width: 700px) {
     .dctl .t, .dsep { display: none; }
     .dctl { padding: 0 8px; }
@@ -162,6 +182,8 @@
     #drawBar { padding: 6px 8px; }
     .sw { width: 24px; height: 24px; }
     #bar { padding: 10px 6px 8px; }
+    #copy { display: none; }               /* on phones, Invite moves to the top bar to save room */
+    #copyTop { display: inline-flex; }
     .ctl .lbl { display: none; }
     .ctl, .ctl.icon { padding: 0; width: 40px; min-width: 40px; height: 40px; }
     #controls { gap: 4px; padding: 6px 8px; border-radius: 26px; }
@@ -204,6 +226,9 @@
     <span class="pill" id="count">1 in call</span>
     <span class="pill hidden" id="hostPill">Host</span>
     <span id="status"></span>
+    <button class="pill" id="copyTop" title="Copy invite link">
+      <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Invite
+    </button>
   </div>
   <div id="main">
     <div id="grid"></div>
@@ -252,6 +277,11 @@
       <button class="ctl" id="draw" title="Draw on your video">
         <svg viewBox="0 0 24 24"><path d="M4 20l4.5-1L19 8.5 15.5 5 5 15.5z"/><path d="M13.5 7l3.5 3.5"/></svg>
         <span class="lbl">Draw</span>
+      </button>
+      <button class="ctl" id="wbBtn" title="Shared whiteboard">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20l4-4 4 4"/><path d="M7 12l3-3 2 2 4-4"/></svg>
+        <span class="lbl">Whiteboard</span>
+        <span id="wbDot" class="hidden"></span>
       </button>
       <button class="ctl" id="chatBtn" title="Chat">
         <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
@@ -308,6 +338,7 @@ const pstate = new Map();        // id -> { mic, cam, sharing }
 const allowed = new Set();       // ids the host has let in
 const waiters = new Map();       // id -> things to do once that id is allowed
 let pinnedId = null, autoPinned = false;
+let joinedAt = 0;                // when I entered the call
 let chatOpen = false, unread = 0;
 
 /* ---------------- small helpers ---------------- */
@@ -372,10 +403,11 @@ function layout() {
     grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
     grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
   }
-  $("count").textContent = n + " in call";
+  const people = tiles.filter(t => t.id !== "tile-board").length;   // the whiteboard isn't a person
+  $("count").textContent = people + " in call";
   $("hostPill").classList.toggle("hidden", !isHost);
   $("endAll").classList.toggle("hidden", !isHost);        // only the host can end the call for everyone
-  if (!left && inCall && myId) setStatus(n === 1 ? "You're the only one here — send the invite link" : "");
+  if (!left && inCall && myId) setStatus(people === 1 ? "You're the only one here — send the invite link" : "");
 }
 addEventListener("resize", layout);
 
@@ -489,6 +521,7 @@ function wireConn(id, conn, dataAlreadyWired) {
   const onOpen = () => {
     peerConns.set(id, conn);
     try { conn.send(myState()); } catch (e) {}
+    wbSync(conn);                        // give them the whiteboard as I have it
     refreshRecipients();
   };
   if (conn.open) onOpen(); else conn.on("open", onOpen);
@@ -509,6 +542,8 @@ function onPeerMsg(id, msg) {
     if (!now.sharing && before && before.sharing && pinnedId === id && autoPinned) { pinnedId = null; autoPinned = false; layout(); }
   } else if (msg.t === "chat") {
     addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
+  } else if (msg.t === "wb") {
+    wbMessage(id, msg);
   } else if (msg.t === "admit") {
     if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
   } else if (msg.t === "end") {
@@ -828,6 +863,7 @@ async function refreshCams() {
 function enterCallUI() {
   if (inCall || left) return;
   inCall = true;
+  joinedAt = performance.now();
   $("join").classList.add("hidden");
   $("call").classList.remove("hidden");
   const tile = makeTile("me", myName + " (You)");
@@ -1022,28 +1058,29 @@ function setupDrawing() {
   c.addEventListener("lostpointercapture", up);
 }
 
-// Screen position -> position on the picture (0–1), allowing for the bars around a "contain" picture.
-function toBoard(e) {
-  const c = draw.canvas, r = c.getBoundingClientRect();
+// Screen position -> position on a canvas (0–1), allowing for the bars around a "contain" picture.
+function posOn(c, e) {
+  const r = c.getBoundingClientRect();
   const s = Math.min(r.width / c.width, r.height / c.height), w = c.width * s, h = c.height * s;
   const x = (e.clientX - r.left - (r.width - w) / 2) / w, y = (e.clientY - r.top - (r.height - h) / 2) / h;
   return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
 }
+const toBoard = e => posOn(draw.canvas, e);
 
-/* The drawing is a list of strokes. Points are stored as 0–1 fractions of the picture,
-   so the drawing survives the picture changing size. */
-function inkStyle() { draw.ig.lineCap = "round"; draw.ig.lineJoin = "round"; }
-function inkSegment(st, i) {             // draw the piece of a stroke that ends at point i
-  const ig = draw.ig, W = draw.ink.width, H = draw.ink.height, p = st.p;
-  const lw = Math.max(1.5, st.w * W);
-  ig.strokeStyle = ig.fillStyle = st.c;
-  ig.lineWidth = lw;
-  ig.beginPath();
-  if (i === 0) { ig.arc(p[0] * W, p[1] * H, lw / 2, 0, Math.PI * 2); ig.fill(); return; }
-  ig.moveTo(p[2 * i - 2] * W, p[2 * i - 1] * H);
-  ig.lineTo(p[2 * i] * W, p[2 * i + 1] * H);
-  ig.stroke();
+/* A drawing is a list of strokes { c: colour, w: width, p: [x0, y0, x1, y1, ...] }. Points are
+   0–1 fractions of the picture, so a drawing survives the picture changing size. */
+function paintSegment(g, W, H, st, i) {  // draw the piece of a stroke that ends at point i
+  const p = st.p, lw = Math.max(1.5, st.w * W);
+  g.strokeStyle = g.fillStyle = st.c;
+  g.lineWidth = lw;
+  g.beginPath();
+  if (i === 0) { g.arc(p[0] * W, p[1] * H, lw / 2, 0, Math.PI * 2); g.fill(); return; }
+  g.moveTo(p[2 * i - 2] * W, p[2 * i - 1] * H);
+  g.lineTo(p[2 * i] * W, p[2 * i + 1] * H);
+  g.stroke();
 }
+function inkStyle() { draw.ig.lineCap = "round"; draw.ig.lineJoin = "round"; }
+const inkSegment = (st, i) => paintSegment(draw.ig, draw.ink.width, draw.ink.height, st, i);
 function redrawInk() {
   if (!draw.ig) return;
   draw.ig.clearRect(0, 0, draw.ink.width, draw.ink.height);
@@ -1052,6 +1089,7 @@ function redrawInk() {
 function startStroke(x, y) {
   const st = { c: draw.color, w: PEN_SIZES[draw.size][0] / 1280, p: [x, y] };
   draw.strokes.push(st);
+  draw.touched = performance.now();      // so Ctrl+Z knows what I drew on last
   inkSegment(st, 0);
   return st;
 }
@@ -1329,7 +1367,7 @@ INK_COLORS.forEach((col, i) => {
   b.title = "Pen colour";
   b.onclick = () => {
     draw.color = col;
-    document.querySelectorAll(".sw").forEach(s => s.classList.toggle("sel", s === b));
+    $("swatches").querySelectorAll(".sw").forEach(s => s.classList.toggle("sel", s === b));
   };
   $("swatches").appendChild(b);
 });
@@ -1344,12 +1382,331 @@ $("undo").onclick = undoInk;
 $("clearInk").onclick = clearInk;
 $("handBtn").onclick = () => draw.hand ? stopHand() : startHand();
 $("draw").onclick = () => draw.on ? stopDrawing() : startDrawing();
-addEventListener("keydown", e => {                 // Ctrl+Z / Cmd+Z undoes the last line
-  if (!draw.on || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
+addEventListener("keydown", e => {                 // Ctrl+Z / Cmd+Z undoes my last line
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
   if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-  e.preventDefault();
-  undoInk();
+  // On whichever I drew on last: the whiteboard or my video.
+  if (wb.visible && (!draw.on || (wb.touched || 0) >= (draw.touched || 0))) { e.preventDefault(); wbUndo(); }
+  else if (draw.on) { e.preventDefault(); undoInk(); }
 });
+
+/* ---------------- shared whiteboard: everyone in the call draws on the same board ---------------- */
+// Each line goes to everyone over the same links the chat uses, a few times a second while it's
+// being drawn. Someone who joins later gets the whole board from the people already in the call.
+// The board lasts as long as the call: once everyone has left, it's gone.
+const WB_W = 1600, WB_H = 900;            // the board's own size (16:9); it's scaled to fit the tile
+const WB_BG = "#ffffff";
+const WB_COLORS = ["#2b2147", "#e5484d", "#f08c00", "#2f9e44", "#1c7ed6", "#8463d8"];
+const WB_ERASER = 40;                     // eraser width, in the same units as PEN_SIZES
+const WB_MAX = 3000;                      // most lines a board keeps
+const wb = {
+  visible: false, canvas: null, g: null, tile: null, tools: null,
+  strokes: [], byId: new Map(), gone: new Set(),   // gone = ids of lines that were undone
+  epoch: 0,                               // goes up by one each time someone clears the board
+  mine: 0,                                // counter for my line ids
+  color: WB_COLORS[0], size: 1, eraser: false,
+  pointerId: null, cur: null, flushTimer: null,
+  touched: 0, clearArmed: null, labels: new Map(), autoOpened: false,
+};
+
+function ensureBoard() {
+  if (wb.canvas) return;
+  const c = document.createElement("canvas");
+  c.className = "wb";
+  c.width = WB_W; c.height = WB_H;
+  wb.canvas = c; wb.g = c.getContext("2d");
+  wbRedraw();
+
+  const tile = document.createElement("div");
+  tile.className = "tile board";
+  tile.id = "tile-board";
+  const tools = document.createElement("div");
+  tools.className = "wbTools";
+  tools.innerHTML = `
+    <div class="wbSw"></div>
+    <button class="dctl" data-act="size" title="Pen size"><span class="wbSize"><i></i></span></button>
+    <button class="dctl" data-act="eraser" title="Eraser">
+      <svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4.5 15.5l9-9a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 19H8z"/><path d="M9 11l4 4"/></svg></button>
+    <button class="dctl" data-act="undo" title="Undo my last line (Ctrl+Z)">
+      <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+    <button class="dctl" data-act="clear" title="Clear the board for everyone">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="t">Clear</span></button>
+    <button class="dctl" data-act="save" title="Save the board as a picture">
+      <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+    <button class="dctl" data-act="close" title="Hide the whiteboard (only for you)">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = "Whiteboard";
+  tile.append(c, tools, name);
+  wb.tile = tile; wb.tools = tools;
+
+  WB_COLORS.forEach((col, i) => {
+    const b = document.createElement("button");
+    b.className = "sw" + (i === 0 ? " sel" : "");
+    b.style.background = col;
+    b.title = "Pen colour";
+    b.onclick = () => { wb.color = col; wb.eraser = false; wbShowTools(); };
+    b.dataset.col = col;
+    tools.querySelector(".wbSw").appendChild(b);
+  });
+  const act = a => tools.querySelector(`[data-act="${a}"]`);
+  act("size").onclick = () => { wb.size = (wb.size + 1) % PEN_SIZES.length; wb.eraser = false; wbShowTools(); };
+  act("eraser").onclick = () => { wb.eraser = !wb.eraser; wbShowTools(); };
+  act("undo").onclick = wbUndo;
+  act("save").onclick = wbSave;
+  act("close").onclick = hideBoard;
+  act("clear").onclick = () => {           // needs a second click, because it wipes everyone's work
+    const lbl = act("clear").querySelector(".t");
+    if (!wb.clearArmed) {
+      lbl.textContent = "Clear all?";
+      toast("Click again to clear the board for everyone");
+      wb.clearArmed = setTimeout(() => { wb.clearArmed = null; lbl.textContent = "Clear"; }, 3000);
+      return;
+    }
+    clearTimeout(wb.clearArmed); wb.clearArmed = null; lbl.textContent = "Clear";
+    wbWipe(wb.epoch + 1);
+    broadcast({ t: "wb", op: "clear", e: wb.epoch });
+    toast("Whiteboard cleared for everyone");
+  };
+  wbShowTools();
+
+  c.addEventListener("pointerdown", e => {
+    if (wb.pointerId !== null || e.button > 0 || !myId) return;
+    e.preventDefault();
+    try { c.setPointerCapture(e.pointerId); } catch (err) {}
+    wb.pointerId = e.pointerId;
+    wbStart(...posOn(c, e));
+  });
+  c.addEventListener("pointermove", e => {
+    if (e.pointerId !== wb.pointerId) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const ev of evs.length ? evs : [e]) wbMove(...posOn(c, ev));
+  });
+  const up = e => { if (e.pointerId === wb.pointerId) { wb.pointerId = null; wbEnd(); } };
+  c.addEventListener("pointerup", up);
+  c.addEventListener("pointercancel", up);
+  c.addEventListener("lostpointercapture", up);
+}
+function wbShowTools() {
+  wb.tools.querySelectorAll(".sw").forEach(s => s.classList.toggle("sel", !wb.eraser && s.dataset.col === wb.color));
+  wb.tools.querySelector('[data-act="eraser"]').classList.toggle("on", wb.eraser);
+  const dot = wb.tools.querySelector(".wbSize i");
+  dot.style.width = dot.style.height = Math.round(4 + PEN_SIZES[wb.size][0] * 0.75) + "px";
+  wb.tools.querySelector('[data-act="size"]').title = "Pen size: " + PEN_SIZES[wb.size][1];
+}
+
+function showBoard(announce) {
+  ensureBoard();
+  if (!wb.visible) {
+    wb.visible = true;
+    $("grid").appendChild(wb.tile);
+    $("wbBtn").classList.add("on");
+    $("wbDot").classList.add("hidden");
+    // Opening it myself makes it big. When someone else opens it, it only takes the big
+    // spot if I haven't chosen someone to enlarge.
+    if (announce || !pinnedId || autoPinned) { pinnedId = "board"; autoPinned = !announce; }
+    layout();
+  }
+  if (announce) broadcast({ t: "wb", op: "open" });   // show it to everyone
+}
+function hideBoard() {                     // hides it only for me; the board itself carries on
+  if (!wb.visible) return;
+  wbEnd();
+  wb.pointerId = null;
+  wb.visible = false;
+  wb.tile.remove();
+  $("wbBtn").classList.remove("on");
+  if (pinnedId === "board") { pinnedId = null; autoPinned = false; }
+  layout();
+}
+$("wbBtn").onclick = () => wb.visible ? hideBoard() : showBoard(true);
+
+function wbRedraw() {
+  const g = wb.g;
+  g.fillStyle = WB_BG;
+  g.fillRect(0, 0, WB_W, WB_H);
+  g.lineCap = "round"; g.lineJoin = "round";
+  for (const st of wb.strokes) for (let i = 0; i < st.p.length / 2; i++) paintSegment(g, WB_W, WB_H, st, i);
+}
+const wbPaint = (st, i) => paintSegment(wb.g, WB_W, WB_H, st, i);
+
+// Lines travel as whole numbers 0–10000 (smaller to send than decimals).
+const packPts = p => p.map(v => Math.round(v * 10000));
+const wbOut = st => ({ id: st.id, c: st.c, w: st.w, e: st.e, p: packPts(st.p) });
+function readPts(a) {                      // check points from someone else before using them
+  if (!Array.isArray(a) || a.length % 2 || a.length > 40000) return null;
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) {
+    const v = +a[i];
+    if (!(v >= 0 && v <= 10000)) return null;
+    out[i] = v / 10000;
+  }
+  return out;
+}
+function readStroke(s) {
+  if (!s || typeof s.id !== "string" || s.id.length > 80) return null;
+  if (typeof s.c !== "string" || !/^#[0-9a-f]{6}$/i.test(s.c)) return null;
+  const w = +s.w, e = +s.e, p = readPts(s.p);
+  if (!(w > 0 && w < 0.2) || !Number.isInteger(e) || e < 0 || !p || p.length < 2) return null;
+  return { id: s.id, c: s.c, w, e, p };
+}
+
+// Add a line (mine or someone else's). Adding the same line twice is harmless.
+function wbAdd(st) {
+  if (wb.gone.has(st.id) || st.e < wb.epoch) return;       // undone, or from before a clear
+  if (st.e > wb.epoch) wbWipe(st.e);                        // someone cleared and I missed it
+  const old = wb.byId.get(st.id);
+  if (old) {                                                // keep the longer copy
+    if (st.p.length > old.p.length) {
+      const from = old.p.length / 2;
+      old.p = st.p;
+      for (let i = from; i < old.p.length / 2; i++) wbPaint(old, i);
+    }
+    return;
+  }
+  if (wb.strokes.length >= WB_MAX) return;
+  wb.strokes.push(st);
+  wb.byId.set(st.id, st);
+  for (let i = 0; i < st.p.length / 2; i++) wbPaint(st, i);
+}
+function wbRemove(sid) {
+  wb.gone.add(sid);
+  const st = wb.byId.get(sid);
+  if (!st) return;
+  wb.byId.delete(sid);
+  wb.strokes.splice(wb.strokes.indexOf(st), 1);
+  if (wb.cur === st) wb.cur = null;
+  wbRedraw();
+}
+function wbWipe(epoch) {
+  wb.epoch = epoch;
+  wb.strokes = [];
+  wb.byId.clear();
+  wb.cur = null;
+  wbRedraw();
+}
+
+// My own lines. Points are rounded the same way they're sent, so every copy of the board is identical.
+const snap = v => Math.round(v * 10000) / 10000;
+function wbStart(x, y) {
+  wbEnd();
+  x = snap(x); y = snap(y);
+  const pen = wb.eraser ? WB_ERASER : PEN_SIZES[wb.size][0];
+  const st = { id: myId + ":" + (++wb.mine), c: wb.eraser ? WB_BG : wb.color, w: pen / 1280, e: wb.epoch, p: [x, y], sent: 2 };
+  wb.strokes.push(st);
+  wb.byId.set(st.id, st);
+  wbPaint(st, 0);
+  wb.cur = st;
+  wb.touched = performance.now();
+  broadcast({ t: "wb", op: "add", s: wbOut(st) });
+}
+function wbMove(x, y) {
+  const st = wb.cur;
+  if (!st) return;
+  x = snap(x); y = snap(y);
+  const p = st.p, n = p.length;
+  if (Math.hypot(x - p[n - 2], y - p[n - 1]) < 0.0015) return;       // ignore tiny wiggles
+  p.push(x, y);
+  wbPaint(st, p.length / 2 - 1);
+  if (!wb.flushTimer) wb.flushTimer = setTimeout(wbFlush, 40);       // send new points in small batches
+}
+function wbFlush() {
+  clearTimeout(wb.flushTimer);
+  wb.flushTimer = null;
+  const st = wb.cur;
+  if (!st || st.sent >= st.p.length) return;
+  broadcast({ t: "wb", op: "pts", id: st.id, i: st.sent, p: packPts(st.p.slice(st.sent)) });
+  st.sent = st.p.length;
+}
+function wbEnd() { wbFlush(); wb.cur = null; }
+function wbUndo() {                        // removes my latest line, for everyone
+  if (!myId) return;
+  for (let k = wb.strokes.length - 1; k >= 0; k--) {
+    const st = wb.strokes[k];
+    if (!st.id.startsWith(myId + ":")) continue;
+    if (wb.cur === st) wbEnd();
+    wbRemove(st.id);
+    broadcast({ t: "wb", op: "undo", id: st.id });
+    return;
+  }
+}
+function wbSave() {
+  const a = document.createElement("a");
+  a.download = "whiteboard-" + new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".png";
+  a.href = wb.canvas.toDataURL("image/png");
+  a.click();
+}
+
+// Show the drawer's name next to their pen for a moment.
+function wbShowWho(id, st) {
+  if (!wb.visible || !st.p.length) return;
+  let el = wb.labels.get(id);
+  if (!el || el.parentNode !== wb.tile) {
+    el = document.createElement("div");
+    el.className = "wbWho";
+    wb.tile.appendChild(el);
+    wb.labels.set(id, el);
+  }
+  el.textContent = nameOf(id);
+  const c = wb.canvas, r = c.getBoundingClientRect(), tr = wb.tile.getBoundingClientRect();
+  const s = Math.min(r.width / WB_W, r.height / WB_H), w = WB_W * s, h = WB_H * s;
+  const x = st.p[st.p.length - 2], y = st.p[st.p.length - 1];
+  el.style.left = Math.round(r.left - tr.left + (r.width - w) / 2 + x * w + 10) + "px";
+  el.style.top = Math.round(r.top - tr.top + (r.height - h) / 2 + y * h + 10) + "px";
+  el.classList.remove("hidden");
+  clearTimeout(el.hideTimer);
+  el.hideTimer = setTimeout(() => el.classList.add("hidden"), 1500);
+}
+function wbActivity(id, st) {
+  if (wb.visible) wbShowWho(id, st);
+  else $("wbDot").classList.remove("hidden");             // something new on the board
+}
+
+// Messages from others. A line's id starts with its drawer's id, so nobody can change someone else's lines.
+function wbMessage(id, msg) {
+  ensureBoard();
+  const own = sid => typeof sid === "string" && sid.startsWith(id + ":");
+  if (msg.op === "add") {
+    const st = readStroke(msg.s);
+    if (st && own(st.id)) { wbAdd(st); if (wb.byId.has(st.id)) wbActivity(id, wb.byId.get(st.id)); }
+  } else if (msg.op === "pts") {
+    const st = own(msg.id) && wb.byId.get(msg.id), add = readPts(msg.p);
+    if (!st || !add) return;
+    const at = Math.max(0, Math.floor(+msg.i || 0)) & ~1;
+    // Skip any points I already have (they can arrive twice when someone has just joined).
+    for (let k = Math.max(0, st.p.length - at); k + 1 < add.length; k += 2) {
+      st.p.push(add[k], add[k + 1]);
+      wbPaint(st, st.p.length / 2 - 1);
+    }
+    wbActivity(id, st);
+  } else if (msg.op === "undo") {
+    if (own(msg.id)) wbRemove(msg.id);
+  } else if (msg.op === "clear") {
+    const e = +msg.e;
+    if (Number.isInteger(e) && e > wb.epoch) { wbWipe(e); toast(nameOf(id) + " cleared the whiteboard"); }
+  } else if (msg.op === "open") {
+    if (!wb.visible) { showBoard(false); toast(nameOf(id) + " opened the whiteboard"); }
+  } else if (msg.op === "sync") {                         // the whole board, when a link opens
+    const e = +msg.e;
+    if (Number.isInteger(e) && e > wb.epoch) wbWipe(e);
+    if (Array.isArray(msg.gone)) for (const g of msg.gone.slice(-5000)) if (typeof g === "string" && g.length <= 80) wbRemove(g);
+    if (Array.isArray(msg.s)) for (const s of msg.s.slice(0, WB_MAX)) { const st = readStroke(s); if (st) wbAdd(st); }
+    // I've just joined and the others have the board open: open it for me too.
+    if (msg.open && !wb.visible && !wb.autoOpened && performance.now() - joinedAt < 20000) {
+      wb.autoOpened = true;
+      showBoard(false);
+      toast("The whiteboard is open");
+    } else if (!wb.visible && wb.strokes.length) $("wbDot").classList.remove("hidden");
+  }
+}
+function wbSync(conn) {
+  if (!wb.canvas || (!wb.strokes.length && !wb.visible && !wb.epoch && !wb.gone.size)) return;
+  try {
+    conn.send({ t: "wb", op: "sync", e: wb.epoch, open: wb.visible,
+                gone: [...wb.gone].slice(-5000), s: wb.strokes.map(wbOut) });
+  } catch (e) { console.warn("whiteboard sync failed", e); }
+}
 
 /* ---------------- chat ---------------- */
 function refreshRecipients() {
@@ -1420,6 +1777,7 @@ $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText(location.href); toast("Invite link copied"); }
   catch (e) { prompt("Copy this link:", location.href); }
 };
+$("copyTop").onclick = () => $("copy").click();
 $("leave").onclick = () => leaveCall();
 
 // Host only: end the call for everyone. Needs a second click so it can't happen by accident.
