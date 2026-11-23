@@ -184,10 +184,91 @@
   #moreMenu .ctl { width: 100%; height: 44px; justify-content: flex-start; padding: 0 14px; border-radius: 12px; }
   #moreMenu .ctl .lbl { display: inline; }
   #moreDot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+  /* ---------- Reactions, raised hands, roles, connection bars ---------- */
+  .tile .float { position: absolute; bottom: 14%; font-size: 44px; line-height: 1; pointer-events: none; z-index: 4;
+                 animation: floatUp 2.6s ease-out forwards; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .25)); }
+  @keyframes floatUp { 0% { transform: translateY(0) scale(.5); opacity: 0; }
+                       12% { transform: translateY(-20px) scale(1.15); opacity: 1; }
+                       100% { transform: translateY(-190px) scale(1); opacity: 0; } }
+  .tile .badge.handb { background: #f5a524; color: #2b2147; font-weight: 700; }
+  .tile .badge.roleb { background: rgba(132, 99, 216, .92); }
+  .qbars { position: absolute; left: 10px; top: 10px; display: flex; align-items: flex-end; gap: 2px; height: 14px;
+           padding: 4px 5px; box-sizing: content-box; border-radius: 7px; background: rgba(29, 22, 48, .55); }
+  .qbars i { width: 3px; border-radius: 1px; background: rgba(255, 255, 255, .35); }
+  .qbars i:nth-child(1) { height: 4px; } .qbars i:nth-child(2) { height: 7px; }
+  .qbars i:nth-child(3) { height: 10px; } .qbars i:nth-child(4) { height: 14px; }
+  .qbars.q4 i, .qbars.q3 i:nth-child(-n+3) { background: #3ddc97; }
+  .qbars.q2 i:nth-child(-n+2) { background: #f5a524; }
+  .qbars.q1 i:nth-child(1) { background: #e5484d; }
+  .tile canvas.board.mirror { transform: scaleX(-1); }
+  .cnt { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+         background: #f5a524; color: #2b2147; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+
+  /* pop-up panels above the buttons */
+  .pop { position: fixed; z-index: 36; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+         padding: 8px; box-shadow: 0 16px 40px rgba(110, 80, 190, .3); }
+  .pop.hidden { display: none; }
+  .emojis { display: flex; gap: 4px; flex-wrap: wrap; max-width: 320px; }
+  .emo { width: 42px; height: 42px; border-radius: 12px; background: var(--panel2); font-size: 22px; display: grid; place-items: center; }
+  .emo:hover { background: #e5dafa; transform: scale(1.08); }
+  .popRow { display: flex; gap: 6px; margin-top: 8px; }
+  .popRow .dctl { flex: 1; justify-content: center; }
+  #filterPop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #filterPop.hidden { display: none; }
+  .fopt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px; border-radius: 12px;
+          background: var(--panel2); font-size: 12px; min-width: 84px; }
+  .fopt b { font-size: 24px; font-weight: normal; line-height: 1.2; }
+  .fopt.sel { background: var(--accent); color: #fff; }
+
+  /* People panel */
+  #people { width: 320px; flex: none; display: flex; flex-direction: column; background: var(--panel);
+            border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  #people.hidden { display: none; }
+  #peopleTools { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  #peopleTools.hidden { display: none; }
+  #plist { flex: 1; min-height: 0; overflow-y: auto; padding: 6px; }
+  .prow { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 12px; }
+  .prow + .prow { border-top: 1px solid var(--panel2); }
+  .pav { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600;
+         background: linear-gradient(135deg, var(--accent2), var(--accent)); flex: none; }
+  .pmain { flex: 1; min-width: 0; }
+  .pname { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ptags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; font-size: 11px; color: var(--muted); align-items: center; }
+  .tag { padding: 1px 7px; border-radius: 999px; background: var(--panel2); }
+  .tag.role { background: var(--accent); color: #fff; }
+  .tag.hand { background: #f5a524; color: #2b2147; font-weight: 600; }
+  .tag.mutedt { background: var(--danger); color: #fff; }
+  .prow .qbars { position: static; background: none; padding: 0; height: 12px; }
+  .prow .qbars i { background: #d8caf4; }
+  .prow .qbars.q4 i, .prow .qbars.q3 i:nth-child(-n+3) { background: #2f9e44; }
+  .prow .qbars.q2 i:nth-child(-n+2) { background: #f08c00; }
+  .prow .qbars.q1 i:nth-child(1) { background: #e5484d; }
+  .pacts { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .pacts button { font-size: 12px; padding: 4px 9px; border-radius: 8px; background: var(--panel2); }
+  .pacts button:hover { background: #e5dafa; }
+  .pacts button.danger { color: var(--danger); }
+  .pacts button.armed { background: var(--danger); color: #fff; }
+
+  /* Files in chat */
+  .msg img.pic { display: block; max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 4px; cursor: zoom-in; }
+  .fcard { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .fcard .fi { font-size: 24px; }
+  .fcard .fn { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .fcard .fs { font-size: 11px; opacity: .8; }
+  .fcard a { font-size: 12px; font-weight: 600; color: inherit; }
+  .fsend { font-size: 11px; opacity: .85; margin-top: 3px; }
+  #chatForm #attach { padding: 0 11px; background: var(--panel2); color: var(--text); font-weight: normal; }
+  #viewer { position: fixed; inset: 0; z-index: 50; background: rgba(20, 14, 36, .86); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px; padding: 20px; }
+  #viewer.hidden { display: none; }
+  #viewer img { max-width: 100%; max-height: calc(100% - 64px); border-radius: 10px; background: #fff; }
+  #viewer .vbar { display: flex; gap: 10px; }
+  #viewer .vbar a, #viewer .vbar button { padding: 8px 16px; border-radius: 10px; background: #fff; color: var(--text);
+                                          font-weight: 600; text-decoration: none; font-size: 14px; }
   #copyTop { display: none; align-items: center; gap: 5px; background: var(--panel); }
   #copyTop svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
-  @media (max-width: 1100px) {             /* mid-size screens: icons only, so the bar stays on one row */
+  @media (max-width: 1500px) {             /* below very wide screens: icons only (labels show on hover) */
     .ctl:not(.leave) .lbl { display: none; }
     .ctl:not(.leave) { padding: 0; width: 46px; }
   }
@@ -206,7 +287,7 @@
     #main { padding: 0 6px; }
     #grid { gap: 6px; }
     .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
-    #chat { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
+    #chat, #people { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
     #topbar .title { display: none; }
   }
   @media (max-width: 370px) {
@@ -254,7 +335,16 @@
       <div id="msgs"><div class="empty" id="noMsgs">No messages yet.</div></div>
       <div class="chatTo"><label for="chatTo">To</label>
         <select id="chatTo"><option value="all">Everyone</option></select></div>
-      <form id="chatForm"><input type="text" id="chatInput" maxlength="500" placeholder="Type a message" autocomplete="off"><button>Send</button></form>
+      <form id="chatForm">
+        <button type="button" id="attach" title="Send a file or picture (up to 20 MB)">📎</button>
+        <input type="file" id="fileInput" hidden>
+        <input type="text" id="chatInput" maxlength="500" placeholder="Type a message" autocomplete="off"><button>Send</button>
+      </form>
+    </aside>
+    <aside id="people" class="hidden">
+      <div class="chatHead"><span id="peopleTitle">People</span><button id="peopleClose" title="Close">✕</button></div>
+      <div id="peopleTools" class="hidden"><button class="dctl" id="muteAll">Mute everyone</button></div>
+      <div id="plist"></div>
     </aside>
   </div>
   <div id="bar">
@@ -291,9 +381,21 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
         <span class="lbl">Share screen</span>
       </button>
+      <button class="ctl" id="reactBtn" title="Send a reaction">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+        <span class="lbl">React</span>
+      </button>
+      <button class="ctl" id="raiseBtn" title="Raise your hand">
+        <svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13"/><path d="M17 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-5.6-2.8L3.6 15.2a1.6 1.6 0 0 1 2.5-2L8 15"/></svg>
+        <span class="lbl" id="raiseLbl">Raise hand</span>
+      </button>
       <button class="ctl" id="draw" title="Draw on your video">
         <svg viewBox="0 0 24 24"><path d="M4 20l4.5-1L19 8.5 15.5 5 5 15.5z"/><path d="M13.5 7l3.5 3.5"/></svg>
         <span class="lbl">Draw</span>
+      </button>
+      <button class="ctl" id="filterBtn" title="Face filters">
+        <svg viewBox="0 0 24 24"><path d="M11 3l1.8 4.7 4.7 1.8-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8z"/><path d="M18.5 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+        <span class="lbl">Filters</span>
       </button>
       <button class="ctl" id="wbBtn" title="Shared whiteboard">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20l4-4 4 4"/><path d="M7 12l3-3 2 2 4-4"/></svg>
@@ -308,6 +410,11 @@
         <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
         <span class="lbl">Chat</span>
         <span id="badge" class="hidden">0</span>
+      </button>
+      <button class="ctl" id="peopleBtn" title="People">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 6 5.5"/></svg>
+        <span class="lbl">People</span>
+        <span id="handCount" class="cnt hidden">0</span>
       </button>
       <button class="ctl" id="copy" title="Copy invite link">
         <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
@@ -332,6 +439,17 @@
 <div id="knocks"></div>
 <div id="toasts"></div>
 <div id="moreMenu" class="hidden"></div>
+<div id="reactPop" class="pop hidden">
+  <div class="emojis" id="emojis"></div>
+  <div class="popRow">
+    <button class="dctl" id="gestBtn" title="Thumbs up 👍 or peace sign ✌️ to the camera sends that reaction; an open palm raises your hand">🖐️ <span id="gestLbl">Camera gestures: off</span></button>
+  </div>
+</div>
+<div id="filterPop" class="pop hidden"></div>
+<div id="viewer" class="hidden">
+  <img id="viewerImg" alt="">
+  <div class="vbar"><a id="viewerDl" href="#" download>Download</a><button id="viewerClose">Close</button></div>
+</div>
 
 <script>
 /* Group Video Call — © 2026 Anmol Pandey. All rights reserved. */
@@ -365,6 +483,12 @@ const allowed = new Set();       // ids the host has let in
 const waiters = new Map();       // id -> things to do once that id is allowed
 let pinnedId = null, autoPinned = false;
 let joinedAt = 0;                // when I entered the call
+let hostId = null;               // the current host's own id (the host tells everyone)
+const cohosts = new Set();       // ids of co-hosts
+const banned = new Set();        // ids removed from the call: never let them back in with that id
+let hostMove = null;             // { to, until } while the host role is being handed to someone
+let myHand = false;              // my hand is raised
+const hands = new Map();         // id ("me" for me) -> when the hand went up, so hands keep their order
 let chatOpen = false, unread = 0;
 
 /* ---------------- small helpers ---------------- */
@@ -385,12 +509,13 @@ function toast(text) {
 // Only talk to people the host has let in. A call that arrives a moment before
 // the host's "let them in" message is held for a few seconds, then refused.
 function allow(id) {
-  if (!id || id === myId) return;
+  if (!id || id === myId || banned.has(id)) return;
   allowed.add(id);
   const list = waiters.get(id);
   if (list) { waiters.delete(id); list.forEach(w => { clearTimeout(w.timer); w.yes(); }); }
 }
 function whenAllowed(id, yes, no) {
+  if (banned.has(id)) return no();
   if (allowed.has(id)) return yes();
   const list = waiters.get(id) || [];
   waiters.set(id, list);
@@ -431,9 +556,11 @@ function layout() {
   }
   const people = tiles.filter(t => t.id !== "tile-board").length;   // the whiteboard isn't a person
   $("count").textContent = people + " in call";
-  $("hostPill").classList.toggle("hidden", !isHost);
+  $("hostPill").textContent = isHost ? "Host" : "Co-host";
+  $("hostPill").classList.toggle("hidden", !isHost && !amCohost());
   $("endAll").classList.toggle("hidden", !isHost);        // only the host can end the call for everyone
   if (!left && inCall && myId) setStatus(people === 1 ? "You're the only one here — send the invite link" : "");
+  if (isHost !== layout.wasHost) { layout.wasHost = isHost; arrangeControls(); }   // "End for all" came or went
 }
 addEventListener("resize", layout);
 
@@ -460,8 +587,15 @@ function makeTile(id, label) {
   sharing.className = "badge sharing hidden"; sharing.textContent = "Sharing screen";
   const recb = document.createElement("span");
   recb.className = "badge recb hidden"; recb.textContent = "● Recording";
-  badges.append(recb, sharing, muted);
-  tile.append(video, avatar, name, badges);
+  const handb = document.createElement("span");
+  handb.className = "badge handb hidden"; handb.textContent = "✋";
+  const roleb = document.createElement("span");
+  roleb.className = "badge roleb hidden";
+  badges.append(handb, roleb, recb, sharing, muted);
+  const bars = document.createElement("div");
+  bars.className = "qbars hidden";
+  bars.innerHTML = "<i></i><i></i><i></i><i></i>";
+  tile.append(video, avatar, name, badges, bars);
   tile.onclick = () => {
     if (id === "me" && draw.on) return;            // clicks on my own tile are for drawing
     pinnedId = pinnedId === id ? null : id; autoPinned = false; layout();
@@ -472,13 +606,15 @@ function makeTile(id, label) {
   };
   $("grid").appendChild(tile);
   layout();
+  paintRoles();
   return tile;
 }
-function paintTile(tile, { video, mic, sharing, recording }) {
+function paintTile(tile, { video, mic, sharing, recording, hand }) {
   tile.querySelector(".avatar").classList.toggle("hidden", video);
   tile.querySelector(".muted").classList.toggle("hidden", mic);
   tile.querySelector(".sharing").classList.toggle("hidden", !sharing);
   tile.querySelector(".recb").classList.toggle("hidden", !recording);
+  tile.querySelector(".handb").classList.toggle("hidden", !hand);
 }
 function renderPeer(id) {
   const tile = $("tile-" + id);
@@ -487,8 +623,8 @@ function renderPeer(id) {
   const stream = tile.querySelector("video").srcObject;
   const hasVideo = !!stream && stream.getVideoTracks().length > 0;
   // Someone drawing with their camera off still sends a picture (their drawing board).
-  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing || st.drawing), mic: st.mic, sharing: st.sharing, recording: st.rec }
-                     : { video: hasVideo, mic: true, sharing: false, recording: false });
+  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing || st.drawing), mic: st.mic, sharing: st.sharing, recording: st.rec, hand: st.hand }
+                     : { video: hasVideo, mic: true, sharing: false, recording: false, hand: false });
 }
 function rearCam() {
   const vt = localStream && localStream.getVideoTracks()[0];
@@ -500,19 +636,24 @@ function updateLocalTile(force) {
   const video = tile.querySelector("video");
   const src = screenStream || localStream;
   if (force || video.srcObject !== src) { video.srcObject = null; video.srcObject = src; }
-  video.classList.toggle("mirror", !screenStream && !rearCam());   // mirror only the selfie camera
-  // While drawing, my tile shows the drawing canvas itself (exactly what others see).
-  const drawing = draw.on && !!draw.canvas;
-  if (drawing && draw.canvas.parentNode !== tile) tile.insertBefore(draw.canvas, tile.firstChild);
-  if (!drawing && draw.canvas && draw.canvas.parentNode === tile) draw.canvas.remove();
-  video.classList.toggle("hidden", drawing);
-  paintTile(tile, { video: drawing || !!screenStream || camOn(), mic: micOn(), sharing: !!screenStream, recording: rec.on });
+  const selfie = !screenStream && !rearCam();
+  video.classList.toggle("mirror", selfie);                       // mirror only the selfie camera
+  // While drawing or using a filter, my tile shows the effects canvas itself (exactly what others see).
+  const piped = draw.pipe && !!draw.canvas;
+  if (piped && draw.canvas.parentNode !== tile) tile.insertBefore(draw.canvas, tile.firstChild);
+  if (!piped && draw.canvas && draw.canvas.parentNode === tile) draw.canvas.remove();
+  if (piped) {
+    draw.canvas.classList.toggle("mirror", selfie && !draw.on);   // a filter alone is sent unmirrored, so mirror it for me
+    draw.canvas.style.cursor = draw.on ? "crosshair" : "";
+  }
+  video.classList.toggle("hidden", piped);
+  paintTile(tile, { video: draw.on || !!screenStream || camOn(), mic: micOn(), sharing: !!screenStream, recording: rec.on, hand: myHand });
 }
 
 /* ---------------- what I send to others ---------------- */
 // The picture everyone gets from me: my drawing canvas, my shared screen, or my camera.
 function currentVideoTrack() {
-  if (draw.on && draw.track) return draw.track;
+  if (draw.pipe && draw.track) return draw.track;
   return screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
 }
 function outgoingStream() {
@@ -542,9 +683,9 @@ function blackTrack() {            // stand-in picture for people with no camera
 }
 
 /* ---------------- status + chat links between people ---------------- */
-function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: rec.on }; }
+function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: rec.on, hand: myHand }; }
 function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
-function sendState() { broadcast(myState()); updateLocalTile(); }
+function sendState() { broadcast(myState()); updateLocalTile(); renderPeople(); }
 
 function wireConn(id, conn, dataAlreadyWired) {
   const onOpen = () => {
@@ -563,9 +704,12 @@ function onPeerMsg(id, msg) {
   if (!msg || typeof msg !== "object") return;
   if (msg.t === "state") {
     const before = pstate.get(id);
-    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing, rec: !!msg.rec };
+    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing, rec: !!msg.rec, hand: !!msg.hand };
     pstate.set(id, now);
     renderPeer(id);
+    if (now.hand && !hands.has(id)) { hands.set(id, Date.now()); toast(nameOf(id) + " raised their hand ✋"); }
+    if (!now.hand && hands.has(id)) hands.delete(id);
+    renderHands();
     // Everyone is told when someone records the call.
     if (now.rec && !(before && before.rec)) toast(nameOf(id) + " is recording this call");
     if (!now.rec && before && before.rec) toast(nameOf(id) + " stopped recording");
@@ -577,6 +721,10 @@ function onPeerMsg(id, msg) {
     addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
   } else if (msg.t === "wb") {
     wbMessage(id, msg);
+  } else if (msg.t === "react") {
+    if (REACTIONS.includes(msg.e) && reactionAllowed(id)) floatEmoji(id, msg.e);
+  } else if (msg.t === "file") {
+    receiveFile(id, msg);
   } else if (msg.t === "admit") {
     if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
   } else if (msg.t === "end") {
@@ -595,6 +743,7 @@ function wireCall(id, c) {
   tile.querySelector(".name").textContent = nameOf(id);
   tile.querySelector(".avatar span").textContent = (nameOf(id).trim()[0] || "?").toUpperCase();
   refreshRecipients();
+  renderPeople();
 
   c.on("stream", stream => {
     if (calls.get(id) !== c) return;
@@ -619,7 +768,7 @@ function wireCall(id, c) {
   });
 }
 
-function dropPeer(id, c) {
+function dropPeer(id, c, note) {
   if (calls.get(id) !== c) return;       // already replaced or removed
   calls.delete(id);
   try { c.close(); } catch (e) {}
@@ -628,11 +777,14 @@ function dropPeer(id, c) {
   if (dc) try { dc.close(); } catch (e) {}
   pstate.delete(id);
   allowed.delete(id);
+  hands.delete(id);
+  quality.delete(id); qprev.delete(id);
   const tile = $("tile-" + id);
-  if (tile) { tile.remove(); if (!left) toast(nameOf(id) + " left"); }
+  if (tile) { tile.remove(); if (!left) toast(note || nameOf(id) + " left"); }
   refreshRecipients();
   layout();
   updateRecUI();
+  renderHands();
 }
 
 function callPeer(id) {
@@ -664,6 +816,7 @@ function clearLobby() {
   lobbyConns.clear();
   for (const k of knocks.values()) k.el.remove();
   knocks.clear();
+  showCoKnocks([]);
   if (l) try { l.destroy(); } catch (e) {}
   if (lc) try { lc.close(); } catch (e) {}
 }
@@ -671,9 +824,11 @@ function scheduleLobby(delay) {
   clearTimeout(lobbyTimer);
   lobbyTimer = setTimeout(enterLobby, delay);
 }
-// People already in the call take over quickly when the host leaves;
+// When the host leaves, co-hosts take over first, then other people in the call;
 // people still waiting outside hold back so they don't grab the host seat.
-const takeoverDelay = () => calls.size > 0 ? 300 + Math.random() * 1500 : 4000 + Math.random() * 2000;
+const takeoverDelay = () => calls.size === 0 ? 4000 + Math.random() * 2000
+                          : amCohost() ? 100 + Math.random() * 300
+                          : 1200 + Math.random() * 1500;
 
 function roster(exceptId) {
   const m = new Map([[myId, myName]]);
@@ -695,6 +850,8 @@ function admit(conn, name, alreadyKnown) {
   }
   lobbyConns.set(id, conn);
   try { conn.send({ type: "members", members: [...members].map(([mid, mname]) => ({ id: mid, name: mname })) }); } catch (e) {}
+  try { conn.send(rolesMsg()); } catch (e) {}            // who's host and co-host
+  if (cohosts.has(id)) sendKnocks(id);
 }
 
 function removeKnock(id, conn) {
@@ -702,10 +859,9 @@ function removeKnock(id, conn) {
   if (!k || (conn && k.conn !== conn)) return;
   k.el.remove();
   knocks.delete(id);
+  sendKnocksAll();
 }
-function addKnock(conn, name) {
-  const id = conn.peer;
-  removeKnock(id);
+function knockCard(name, onYes, onNo) {
   const el = document.createElement("div");
   el.className = "knock";
   const text = document.createElement("div");
@@ -718,39 +874,205 @@ function addKnock(conn, name) {
   yes.className = "yes"; yes.textContent = "Admit";
   const no = document.createElement("button");
   no.className = "no"; no.textContent = "Deny";
-  yes.onclick = () => { removeKnock(id); admit(conn, name, false); };
-  no.onclick = () => {
-    removeKnock(id);
-    try { conn.send({ type: "denied" }); } catch (e) {}
-    setTimeout(() => { try { conn.close(); } catch (e) {} }, 800);
-  };
+  yes.onclick = onYes;
+  no.onclick = onNo;
   row.append(yes, no);
   el.append(text, row);
   $("knocks").appendChild(el);
-  knocks.set(id, { conn, el });
+  return el;
+}
+function addKnock(conn, name) {
+  const id = conn.peer;
+  removeKnock(id);
+  const el = knockCard(name, () => hostAct("admit", id, myId), () => hostAct("deny", id, myId));
+  knocks.set(id, { conn, el, name });
   toast(name + " wants to join");
+  sendKnocksAll();                                      // co-hosts can let people in too
+}
+
+/* ---- roles: the host decides who's co-host. Host commands travel only over the link to the
+   host's fixed room ID, which nobody else can own, so they can't be faked by other people. ---- */
+function amCohost() { return !!myId && !isHost && cohosts.has(myId); }
+const rolesMsg = () => ({ type: "roles", host: myId, cohosts: [...cohosts] });
+function sendRoles() {
+  if (!isHost) return;
+  hostId = myId;
+  for (const c of lobbyConns.values()) if (c.open) try { c.send(rolesMsg()); } catch (e) {}
+  rolesChanged();
+}
+function setRoles(msg) {                                // from the host
+  if (typeof msg.host !== "string") return;
+  hostId = msg.host;
+  cohosts.clear();
+  if (Array.isArray(msg.cohosts)) for (const c of msg.cohosts.slice(0, 10)) if (typeof c === "string") cohosts.add(c);
+  rolesChanged();
+}
+function rolesChanged() {
+  paintRoles();
+  layout();
+  renderPeople();
+  if (!isHost && !amCohost()) showCoKnocks([]);
+  sendKnocksAll();
+}
+function paintRoles() {
+  for (const tile of $("grid").children) {
+    const b = tile.querySelector(".roleb");
+    if (!b) continue;
+    const tid = tile.id.slice(5), id = tid === "me" ? myId : tid;
+    const role = id && id === hostId ? "Host" : cohosts.has(id) ? "Co-host" : "";
+    b.textContent = role;
+    b.classList.toggle("hidden", !role);
+  }
+}
+function tell(id, msg) {                                // host -> one person, over their link to the host
+  const c = lobbyConns.get(id);
+  if (c && c.open) try { c.send(msg); } catch (e) {}
+}
+function sendKnocks(id) { tell(id, { type: "knocks", list: [...knocks].map(([kid, k]) => ({ id: kid, name: k.name })) }); }
+function sendKnocksAll() { if (isHost) for (const id of cohosts) sendKnocks(id); }
+
+// Ask the host to do something (or do it, if I am the host).
+function request(action, target) {
+  if (isHost) hostAct(action, target, myId);
+  else if (lobbyConn && lobbyConn.open) try { lobbyConn.send({ type: "req", action, target }); } catch (e) {}
+}
+const COHOST_CAN = new Set(["mute", "lowerhand", "remove", "muteall", "admit", "deny"]);
+function hostAct(action, target, by) {
+  if (!isHost) return;
+  const boss = by === myId;
+  if (!boss && !(cohosts.has(by) && COHOST_CAN.has(action))) return;   // only co-hosts may ask, and only for these
+  const byName = boss ? myName : nameOf(by);
+  if (action === "admit" || action === "deny") {
+    const k = knocks.get(target);
+    if (!k) return;
+    removeKnock(target);
+    if (action === "admit") admit(k.conn, k.name, false);
+    else {
+      try { k.conn.send({ type: "denied" }); } catch (e) {}
+      setTimeout(() => { try { k.conn.close(); } catch (e) {} }, 800);
+    }
+    return;
+  }
+  if (action === "muteall") {
+    for (const id of lobbyConns.keys()) if (id !== by && calls.has(id)) tell(id, { type: "cmd", cmd: "mute", by: byName });
+    toast(boss ? "You muted everyone" : byName + " muted everyone");
+    return;
+  }
+  if (typeof target !== "string" || target === myId || !calls.has(target)) return;   // nobody acts on the host
+  if (!boss && cohosts.has(target) && action === "remove") return;                    // co-hosts can't remove co-hosts
+  if (action === "mute" || action === "lowerhand") tell(target, { type: "cmd", cmd: action, by: byName });
+  else if (action === "remove") removePerson(target, byName);
+  else if (boss && (action === "cohost" || action === "uncohost")) {
+    if (action === "cohost") cohosts.add(target);
+    else { cohosts.delete(target); tell(target, { type: "knocks", list: [] }); }
+    sendRoles();
+    toast(nameOf(target) + (action === "cohost" ? " is now a co-host" : " is no longer a co-host"));
+  } else if (boss && action === "makehost") transferHost(target);
+}
+function removePerson(target, byName) {
+  banned.add(target);
+  cohosts.delete(target);
+  tell(target, { type: "cmd", cmd: "remove", by: byName });
+  for (const [id, c] of lobbyConns) if (id !== target && c.open) try { c.send({ type: "removed", id: target }); } catch (e) {}
+  const call = calls.get(target);
+  if (call) dropPeer(target, call, nameOf(target) + " was removed from the call");
+  setTimeout(() => {
+    const lc = lobbyConns.get(target);
+    lobbyConns.delete(target);
+    if (lc) try { lc.close(); } catch (e) {}
+  }, 1000);
+  sendRoles();
+}
+// Hand the host role to someone else. I become a co-host.
+function transferHost(target) {
+  if (!isHost || !calls.has(target) || !lobbyConns.has(target)) return;
+  const next = new Set(cohosts);
+  next.delete(target); next.add(myId);
+  for (const c of lobbyConns.values()) if (c.open) try { c.send({ type: "host-moving", to: target }); } catch (e) {}
+  tell(target, { type: "cmd", cmd: "take-host", cohosts: [...next], by: myName });
+  toast(nameOf(target) + " is now the host");
+  setTimeout(() => {                                  // step down, then join the new host as a member
+    hostMove = { to: target, until: Date.now() + 12000 };
+    clearLobby();
+    hostId = target;
+    cohosts.clear(); next.forEach(c => cohosts.add(c));
+    rolesChanged();
+    scheduleLobby(1500 + Math.random() * 1000);
+  }, 400);
+}
+// Commands from the host (they arrive only on my link to the host's fixed room ID).
+function handleCmd(msg) {
+  const by = msg.by ? clean(msg.by) : "The host";
+  if (msg.cmd === "mute") {
+    const t = localStream && localStream.getAudioTracks()[0];
+    if (t && t.enabled) {
+      t.enabled = false;
+      $("mic").classList.add("off");
+      sendState();
+      toast(by + " muted you — you can unmute yourself");
+    }
+  } else if (msg.cmd === "lowerhand") {
+    if (myHand) { setHand(false, true); toast(by + " lowered your hand"); }
+  } else if (msg.cmd === "remove") {
+    leaveCall("You were removed from the call by " + by + ".");
+  } else if (msg.cmd === "take-host") {
+    hostMove = { to: myId, until: Date.now() + 12000 };
+    cohosts.clear();
+    if (Array.isArray(msg.cohosts)) for (const c of msg.cohosts.slice(0, 10)) if (typeof c === "string" && c !== myId) cohosts.add(c);
+    toast(by + " made you the host");
+    scheduleLobby(450);                               // take the host's room ID once it's free
+  }
+}
+
+// Join requests, shown to co-hosts too. Their Admit/Deny goes to the host, who does it.
+const coKnocks = new Map();                           // id -> card
+function showCoKnocks(list) {
+  const want = new Map();
+  if (Array.isArray(list)) for (const k of list.slice(0, 20)) if (k && typeof k.id === "string") want.set(k.id, clean(k.name));
+  for (const [id, el] of coKnocks) if (!want.has(id)) { el.remove(); coKnocks.delete(id); }
+  for (const [id, name] of want) {
+    if (coKnocks.has(id)) continue;
+    const done = () => { const el = coKnocks.get(id); if (el) el.remove(); coKnocks.delete(id); };
+    coKnocks.set(id, knockCard(name, () => { done(); request("admit", id); }, () => { done(); request("deny", id); }));
+    toast(name + " wants to join");
+  }
 }
 
 // Try to become the host. If someone already is, ask them to let me in.
 function enterLobby() {
   if (left || !myId) return;
   clearLobby();
+  // The host role is being handed to someone else: join them instead of grabbing it.
+  if (hostMove && hostMove.to !== myId && Date.now() < hostMove.until) { askLobby(); return; }
   const l = new Peer(LOBBY_ID);
   lobby = l;
 
   l.on("open", () => {
     if (lobby !== l) return;
     isHost = true;
+    hostMove = null;
+    hostId = myId;
+    cohosts.delete(myId);
+    for (const c of [...cohosts]) if (!calls.has(c)) cohosts.delete(c);
     const first = !inCall;
     enterCallUI();
     toast(first ? "You're the host — you approve who joins" : "You're now the host — you approve who joins");
+    sendRoles();
     layout();
   });
 
   l.on("connection", conn => {
+    conn.on("data", m => {                           // requests from co-hosts
+      if (lobby === l && m && m.type === "req" && lobbyConns.get(conn.peer) === conn) hostAct(String(m.action), m.target, conn.peer);
+    });
     conn.on("open", () => {
       if (lobby !== l) return;
       const id = conn.peer;
+      if (banned.has(id)) {                          // removed earlier: not coming back with this id
+        try { conn.send({ type: "denied" }); } catch (e) {}
+        setTimeout(() => { try { conn.close(); } catch (e) {} }, 500);
+        return;
+      }
       const name = clean(conn.metadata && conn.metadata.name);
       if (calls.has(id) || allowed.has(id)) { admit(conn, name, true); return; }   // already in the call
       if (roster(id).size >= MAX_PEOPLE) { try { conn.send({ type: "full" }); } catch (e) {} return; }
@@ -767,8 +1089,11 @@ function enterLobby() {
     if (lobby !== l) return;
     lobby = null; isHost = false;
     try { l.destroy(); } catch (e) {}
-    if (err.type === "unavailable-id") askLobby();     // someone else is the host
-    else scheduleLobby(3000);
+    if (err.type === "unavailable-id") {
+      // I'm being made host but the old host hasn't let go of the ID yet: try again shortly.
+      if (hostMove && hostMove.to === myId && Date.now() < hostMove.until) scheduleLobby(600);
+      else askLobby();                                 // someone else is the host
+    } else scheduleLobby(3000);
     layout();
   });
   l.on("disconnected", () => { if (lobby === l && !l.destroyed) l.reconnect(); });
@@ -793,6 +1118,20 @@ function askLobby() {
       leaveCall("This call is full (" + MAX_PEOPLE + " people max).");
     } else if (msg.type === "admit") {
       if (typeof msg.id === "string") { if (msg.name) names.set(msg.id, clean(msg.name)); allow(msg.id); }
+    } else if (msg.type === "roles") {
+      setRoles(msg);
+    } else if (msg.type === "cmd") {
+      handleCmd(msg);
+    } else if (msg.type === "removed") {
+      if (typeof msg.id === "string" && msg.id !== myId) {
+        banned.add(msg.id);
+        const c = calls.get(msg.id);
+        if (c) dropPeer(msg.id, c, nameOf(msg.id) + " was removed from the call");
+      }
+    } else if (msg.type === "knocks") {
+      showCoKnocks(msg.list);
+    } else if (msg.type === "host-moving") {
+      if (typeof msg.to === "string") hostMove = { to: msg.to, until: Date.now() + 12000 };
     } else if (msg.type === "members") {
       answered = true;
       enterCallUI();
@@ -892,6 +1231,7 @@ async function refreshCams() {
   let n = 0;
   try { n = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput").length; } catch (e) {}
   $("flip").classList.toggle("hidden", placeholderCam || n < 2);
+  arrangeControls();
 }
 
 function enterCallUI() {
@@ -907,8 +1247,10 @@ function enterCallUI() {
   if (!navigator.mediaDevices.getDisplayMedia) $("share").classList.add("hidden");
   if (!HTMLCanvasElement.prototype.captureStream) $("draw").classList.add("hidden");
   if (!canRecord()) $("recBtn").classList.add("hidden");
+  if (!HTMLCanvasElement.prototype.captureStream || placeholderCam) $("filterBtn").classList.add("hidden");
   refreshCams();
   layout();
+  arrangeControls();
 }
 
 function leaveCall(message) {
@@ -924,6 +1266,14 @@ function leaveCall(message) {
   }, 300);
   stopRecording();                         // leaving saves the recording
   stopDrawing(true);
+  face.filter = null;
+  pipeUpdate(true);
+  stopGestures();
+  closePops();
+  $("people").classList.add("hidden");
+  $("viewer").classList.add("hidden");
+  for (const el of coKnocks.values()) el.remove();
+  coKnocks.clear();
   for (const s of [localStream, screenStream]) if (s) s.getTracks().forEach(t => t.stop());
   if (audioCtx) try { audioCtx.close(); } catch (e) {}
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -979,8 +1329,9 @@ async function flipCamera() {
   fresh.enabled = wasOn;
   localStream.removeTrack(old);
   localStream.addTrack(fresh);
-  if (draw.on) drawSources();                       // the drawing canvas now reads the new camera
+  if (draw.pipe) drawSources();                     // the effects canvas now reads the new camera
   else if (!screenStream) await swapOutgoing("video", fresh);
+  if (gest.on) feedCam();                           // camera gestures follow the new camera too
   updateLocalTile(true);
   sendState();
   flipping = false;
@@ -992,7 +1343,7 @@ async function stopSharing() {
   if (!screenStream) return;
   screenStream.getTracks().forEach(t => t.stop());
   screenStream = null;
-  if (draw.on) drawSources();                       // keep drawing, now on the camera
+  if (draw.pipe) drawSources();                     // keep drawing, now on the camera
   await swapOutgoing("video", currentVideoTrack());
   if (mixedTrack) {
     mixedTrack = null;
@@ -1010,7 +1361,7 @@ $("share").onclick = async () => {
   screenStream = s;
   const track = s.getVideoTracks()[0];
   track.onended = stopSharing;                        // browser's own "Stop sharing" button
-  if (draw.on) drawSources();                         // drawing continues on top of the shared screen
+  if (draw.pipe) drawSources();                       // drawing continues on top of the shared screen
   await swapOutgoing("video", currentVideoTrack());
 
   const mic = localStream.getAudioTracks()[0];
@@ -1041,6 +1392,7 @@ const BOARD = "#1d1630";                 // background when my camera is off
 
 const draw = {
   on: false, hand: false, handLoading: false,
+  pipe: false,                           // the effects canvas is running (for drawing and/or a face filter)
   canvas: null, g: null,                 // what everyone sees: picture + drawing + hand pointer
   ink: null, ig: null,                   // only the drawing, kept apart so it's cheap to redraw
   track: null, stopTick: null, last: 0,
@@ -1150,16 +1502,17 @@ function undoInk() {
 }
 
 // Point the hidden players at my current camera and shared screen.
+function feedPlayer(v, track) {
+  const now = v.srcObject && v.srcObject.getVideoTracks()[0];
+  if (now === track) return;
+  v.srcObject = track ? new MediaStream([track]) : null;
+  if (track) v.play().catch(() => {});
+}
+function feedCam() { setupDrawing(); feedPlayer(draw.camVideo, localStream.getVideoTracks()[0]); }
 function drawSources() {
-  if (!draw.on) return;
-  const feed = (v, track) => {
-    const now = v.srcObject && v.srcObject.getVideoTracks()[0];
-    if (now === track) return;
-    v.srcObject = track ? new MediaStream([track]) : null;
-    if (track) v.play().catch(() => {});
-  };
-  feed(draw.camVideo, localStream.getVideoTracks()[0]);
-  feed(draw.scrVideo, screenStream ? screenStream.getVideoTracks()[0] : null);
+  if (!draw.pipe) return;
+  feedCam();
+  feedPlayer(draw.scrVideo, screenStream ? screenStream.getVideoTracks()[0] : null);
   const src = screenStream ? "screen" : "cam";
   if (draw.source && draw.source !== src) clearInk();      // a drawing made on my face doesn't belong on my screen
   draw.source = src;
@@ -1186,11 +1539,16 @@ function drawFrame() {
   g.fillRect(0, 0, W, H);
   if (live) {
     // Selfie camera: send it mirrored while drawing, so writing reads the right way round for everyone.
-    if (!sharing && !rearCam()) { g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(v, 0, 0, W, H); g.restore(); }
-    else g.drawImage(v, 0, 0, W, H);
+    g.save();
+    if (draw.on && !sharing && !rearCam()) { g.translate(W, 0); g.scale(-1, 1); }
+    g.drawImage(v, 0, 0, W, H);
+    if (!sharing && face.filter) drawFilter(g, W, H);   // the filter moves with the picture
+    g.restore();
   }
-  g.drawImage(draw.ink, 0, 0);
-  drawCursor(g, W);
+  if (draw.on) {
+    g.drawImage(draw.ink, 0, 0);
+    drawCursor(g, W);
+  }
 }
 // The hand pointer, so everyone can see where I'm pointing.
 function drawCursor(g, W) {
@@ -1236,20 +1594,45 @@ function tick() {
   if (now - draw.last < 22) return;      // skip ticks that piled up while the page was busy
   draw.last = now;
   if (draw.hand) trackHand(now);
+  if (face.filter) trackFace(now);
   drawFrame();
+}
+
+// The effects canvas runs while I'm drawing or using a face filter, and is what everyone receives.
+function pipeStart() {
+  if (draw.pipe) return;
+  setupDrawing();
+  draw.pipe = true;
+  draw.source = null;
+  drawSources();
+  drawFrame();
+  draw.track = draw.canvas.captureStream(30).getVideoTracks()[0];
+  draw.stopTick = startTicker(tick);
+  swapOutgoing("video", draw.track);
+  updateLocalTile();
+}
+function pipeStop(quiet) {
+  if (!draw.pipe) return;
+  draw.pipe = false;
+  if (draw.stopTick) { draw.stopTick(); draw.stopTick = null; }
+  const old = draw.track;
+  draw.track = null;
+  draw.scrVideo.srcObject = null;
+  if (!gest.on) draw.camVideo.srcObject = null;       // camera gestures still use the camera player
+  if (quiet) { if (old) old.stop(); return; }
+  swapOutgoing("video", currentVideoTrack()).then(() => { if (old) old.stop(); });
+  updateLocalTile();
+}
+function pipeUpdate(quiet) {
+  if (draw.on || face.filter) pipeStart(); else pipeStop(quiet);
 }
 
 function startDrawing() {
   if (draw.on || !inCall || left) return;
   setupDrawing();
   draw.on = true;
-  draw.source = null;
   clearInk();
-  drawSources();
-  drawFrame();
-  draw.track = draw.canvas.captureStream(30).getVideoTracks()[0];
-  draw.stopTick = startTicker(tick);
-  swapOutgoing("video", draw.track);
+  if (draw.pipe) drawSources(); else pipeStart();
   draw.prevPin = { id: pinnedId, auto: autoPinned };      // make my tile the big one while I draw
   pinnedId = "me"; autoPinned = false;
   $("draw").classList.add("on");
@@ -1262,16 +1645,12 @@ function stopDrawing(quiet) {
   if (!draw.on) return;
   draw.on = false;
   stopHand();
-  if (draw.stopTick) { draw.stopTick(); draw.stopTick = null; }
-  const old = draw.track;
-  draw.track = null;
   draw.pointerId = null;
   clearInk();
-  draw.camVideo.srcObject = null; draw.scrVideo.srcObject = null;
   $("draw").classList.remove("on");
   $("drawBar").classList.add("hidden");
-  if (quiet) { if (old) old.stop(); return; }
-  swapOutgoing("video", currentVideoTrack()).then(() => { if (old) old.stop(); });
+  pipeUpdate(quiet);                                  // keeps running if a face filter is on
+  if (quiet) return;
   if (pinnedId === "me" && !autoPinned && draw.prevPin) { pinnedId = draw.prevPin.id; autoPinned = draw.prevPin.auto; }
   draw.prevPin = null;
   layout();
@@ -1279,10 +1658,25 @@ function stopDrawing(quiet) {
 }
 
 /* ---- drawing in the air: MediaPipe finds 21 points on my hand in each camera frame ---- */
+let visionLib = null;                    // the MediaPipe library, loaded once for hands and faces
+function loadVision() {
+  if (!visionLib) visionLib = (async () => {
+    const vision = await import(MP + "/vision_bundle.mjs");
+    const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
+    return { vision, files };
+  })().catch(e => { visionLib = null; throw e; });
+  return visionLib;
+}
+let handTs = 0;                          // MediaPipe needs ever-increasing timestamps
+function detectHand(v) {
+  const ts = Math.max(performance.now(), handTs + 1);
+  handTs = ts;
+  try { const r = handTracker.detectForVideo(v, ts); return (r && r.landmarks && r.landmarks[0]) || null; }
+  catch (e) { console.warn(e); return null; }
+}
 async function loadHandTracker() {
   if (handTracker) return handTracker;
-  const vision = await import(MP + "/vision_bundle.mjs");
-  const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
+  const { vision, files } = await loadVision();
   const opts = delegate => ({
     baseOptions: { modelAssetPath: HAND_MODEL, delegate },
     runningMode: "VIDEO", numHands: 1,
@@ -1341,12 +1735,7 @@ function handToBoard(pt) {
 function trackHand(now) {
   const hs = draw.hs, v = draw.camVideo;
   let lm = null;
-  if (handTracker && camOn() && v.readyState >= 2 && v.videoWidth > 0) {
-    const ts = Math.max(now, hs.lastTs + 1);       // MediaPipe needs ever-increasing timestamps
-    hs.lastTs = ts;
-    try { const r = handTracker.detectForVideo(v, ts); lm = r && r.landmarks && r.landmarks[0]; }
-    catch (e) { console.warn(e); }
-  }
+  if (handTracker && camOn() && v.readyState >= 2 && v.videoWidth > 0) lm = detectHand(v);
   if (!lm) {                                       // no hand: end the line if it stays gone
     if (now - hs.seen > 250) {
       hs.stroke = null; hs.mode = "none"; hs.cand = null; hs.candN = 0; hs.p = null; hs.palmAt = 0;
@@ -1852,6 +2241,19 @@ function recTile(g, tile, r) {
     g.font = `${size}px system-ui, sans-serif`;
     recPill(g, x + w - g.measureText("Muted").width - 24, y + 8, "Muted", "#e5484d", size);
   }
+  const hand = tile.querySelector(".handb");
+  if (hand && !hand.classList.contains("hidden")) recPill(g, x + 8, y + 8, hand.textContent, "#f5a524", size);
+  // Floating reactions rise up the tile, as on screen.
+  const now = performance.now(), fs = Math.max(24, Math.min(56, h * 0.13));
+  g.font = `${Math.round(fs)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  for (const f of floats) {
+    if ("tile-" + f.id !== tile.id) continue;
+    const p = Math.min(1, (now - f.t0) / 2600);
+    g.globalAlpha = p < 0.12 ? p / 0.12 : 1 - (p - 0.12) / 0.88;
+    g.fillText(f.e, x + w * f.x, y + h * 0.86 - p * Math.min(h * 0.7, 190));
+  }
+  g.globalAlpha = 1;
   g.restore();
 }
 function recFrame() {
@@ -1967,43 +2369,592 @@ $("recBtn").onclick = () => rec.on ? stopRecording() : startRecording();
 // Closing the tab would lose the recording, so the browser asks first.
 addEventListener("beforeunload", e => { if (rec.on) { e.preventDefault(); e.returnValue = ""; } });
 
-/* ---------------- phones: extra buttons live in a "More" menu so the bar fits on one row ---------------- */
-const MORE_IDS = ["share", "draw", "wbBtn", "recBtn"];
-let compact = null;
+/* ---------------- the button bar: whatever doesn't fit on one row goes in the ⋯ menu ---------------- */
+const CTL_ORDER = [...$("controls").children];                    // the bar's normal order
+// Moved into the ⋯ menu first → last when the bar is too narrow (most-used buttons stay out).
+const OVERFLOW = ["recBtn", "filterBtn", "wbBtn", "draw", "share", "peopleBtn", "raiseBtn", "reactBtn"];
+function barFits() {
+  const vis = [...$("controls").children].filter(e => e.offsetParent);
+  return vis.every(e => e.offsetTop === vis[0].offsetTop);
+}
 function arrangeControls() {
-  const narrow = matchMedia("(max-width: 700px)").matches;
-  if (narrow === compact) return;
-  compact = narrow;
-  for (const id of MORE_IDS) {
-    if (narrow) $("moreMenu").appendChild($(id));
-    else $("controls").insertBefore($(id), $("chatBtn"));
+  const bar = $("controls"), menu = $("moreMenu");
+  const before = [...menu.children].map(e => e.id).join();
+  for (const el of CTL_ORDER) bar.appendChild(el);                 // everything back, in order
+  $("moreBtn").classList.add("hidden");
+  if (bar.offsetParent && !barFits()) {
+    $("moreBtn").classList.remove("hidden");
+    const moved = new Set();
+    for (const id of OVERFLOW) {
+      if ($(id).classList.contains("hidden")) continue;
+      moved.add(id);
+      for (const el of CTL_ORDER) if (moved.has(el.id)) menu.appendChild(el);   // the menu keeps the bar's order
+      if (barFits()) break;
+    }
   }
-  $("moreBtn").classList.toggle("hidden", !narrow);
-  closeMore();
+  if ([...menu.children].map(e => e.id).join() !== before) closeMore();
   updateMoreBtn();
 }
 function openMore() {
+  closePops();
   const m = $("moreMenu"), r = $("moreBtn").getBoundingClientRect();
   m.classList.remove("hidden");
   m.style.bottom = Math.round(innerHeight - r.top + 8) + "px";
   m.style.left = Math.round(Math.min(innerWidth - m.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - m.offsetWidth / 2))) + "px";
 }
 function closeMore() { $("moreMenu").classList.add("hidden"); }
-function updateMoreBtn() {       // the ⋯ button shows when something inside it is on or has news
-  const items = MORE_IDS.map($);
+function updateMoreBtn() {       // the ⋯ button lights up when something inside it is on or has news
+  const items = [...$("moreMenu").children];
   $("moreBtn").classList.toggle("on", items.some(b => b.classList.contains("on")));
-  $("moreBtn").classList.toggle("rec", rec.on);
-  $("moreDot").classList.toggle("hidden", $("wbDot").classList.contains("hidden"));
+  $("moreBtn").classList.toggle("rec", items.includes($("recBtn")) && rec.on);
+  $("moreDot").classList.toggle("hidden", !items.some(b => b.querySelector("#wbDot:not(.hidden), #handCount:not(.hidden)")));
 }
 $("moreBtn").onclick = () => $("moreMenu").classList.contains("hidden") ? openMore() : closeMore();
 $("moreMenu").addEventListener("click", e => { if (e.target.closest(".ctl")) closeMore(); });
+const moreWatch = new MutationObserver(updateMoreBtn);
+for (const el of CTL_ORDER) moreWatch.observe(el, { attributes: true, attributeFilter: ["class"], subtree: true });
+addEventListener("resize", arrangeControls);
+
+// Small pop-up panels (reactions, filters) open above their button, or above ⋯ if the button is in the menu.
+const POPS = ["reactPop", "filterPop"];
+function openPop(id, btn) {
+  const inMenu = !!btn.closest("#moreMenu");
+  const pop = $(id), wasOpen = !pop.classList.contains("hidden");
+  closePops(); closeMore();
+  if (wasOpen) return;                                  // a second click closes it
+  const anchor = inMenu || !btn.offsetParent ? $("moreBtn") : btn;
+  pop.classList.remove("hidden");
+  const r = anchor.getBoundingClientRect();
+  pop.style.bottom = Math.round(innerHeight - r.top + 8) + "px";
+  pop.style.left = Math.round(Math.min(innerWidth - pop.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - pop.offsetWidth / 2))) + "px";
+}
+function closePops() { for (const id of POPS) $(id).classList.add("hidden"); }
 document.addEventListener("pointerdown", e => {
   if (!$("moreMenu").classList.contains("hidden") && !e.target.closest("#moreMenu, #moreBtn")) closeMore();
+  if (!e.target.closest(".pop, #reactBtn, #filterBtn")) closePops();
 });
-const moreWatch = new MutationObserver(updateMoreBtn);
-for (const el of [...MORE_IDS.map($), $("wbDot")]) moreWatch.observe(el, { attributes: true, attributeFilter: ["class"] });
-addEventListener("resize", arrangeControls);
-arrangeControls();
+addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  closePops(); closeMore();
+  $("viewer").classList.add("hidden");
+});
+
+/* ---------------- reactions and raised hands ---------------- */
+const REACTIONS = ["👍", "✌️", "❤️", "😂", "😮", "👏", "🎉"];
+const floats = [];                                      // reactions on screen right now (the recording draws them too)
+const reactLog = new Map();                             // id -> recent reaction times, to stop floods
+function reactionAllowed(id) {
+  const now = Date.now(), recent = (reactLog.get(id) || []).filter(t => now - t < 3000);
+  if (recent.length >= 6) return false;
+  recent.push(now);
+  reactLog.set(id, recent);
+  return true;
+}
+function floatEmoji(id, e) {                            // an emoji rises up that person's tile
+  const tile = $("tile-" + id);
+  if (!tile) return;
+  const el = document.createElement("div");
+  el.className = "float";
+  el.textContent = e;
+  const x = 0.15 + Math.random() * 0.6;
+  el.style.left = Math.round(x * 100) + "%";
+  tile.appendChild(el);
+  const f = { id, e, x, t0: performance.now() };
+  floats.push(f);
+  setTimeout(() => { el.remove(); const i = floats.indexOf(f); if (i >= 0) floats.splice(i, 1); }, 2600);
+}
+function sendReaction(e) {
+  if (!REACTIONS.includes(e) || !inCall || left) return;
+  broadcast({ t: "react", e });
+  floatEmoji("me", e);
+}
+REACTIONS.forEach(e => {
+  const b = document.createElement("button");
+  b.className = "emo";
+  b.textContent = e;
+  b.title = "Send " + e;
+  b.onclick = () => { sendReaction(e); closePops(); };
+  $("emojis").appendChild(b);
+});
+$("reactBtn").onclick = () => openPop("reactPop", $("reactBtn"));
+
+function setHand(up) {
+  if (myHand === up) return;
+  myHand = up;
+  if (up) hands.set("me", Date.now()); else hands.delete("me");
+  sendState();
+  renderHands();
+}
+$("raiseBtn").onclick = () => { setHand(!myHand); toast(myHand ? "You raised your hand ✋" : "You lowered your hand"); };
+// Hand badges show their order (✋ 1, ✋ 2 …) and the People button counts raised hands.
+function renderHands() {
+  const order = [...hands].sort((a, b) => a[1] - b[1]).map(([id]) => id);
+  order.forEach((id, i) => { const t = $("tile-" + id); if (t) t.querySelector(".handb").textContent = "✋ " + (i + 1); });
+  $("handCount").textContent = order.length;
+  $("handCount").classList.toggle("hidden", !order.length);
+  $("raiseBtn").classList.toggle("on", myHand);
+  $("raiseLbl").textContent = myHand ? "Lower hand" : "Raise hand";
+  $("raiseBtn").title = myHand ? "Lower your hand" : "Raise your hand";
+  renderPeople();
+}
+
+/* ---- camera gestures: 👍 or ✌️ to the camera sends that reaction; an open palm raises my hand ---- */
+const gest = { on: false, loading: false, stopTick: null, cand: null, n: 0, last: 0, sent: 0 };
+function readReaction(lm, ar) {                         // from MediaPipe's 21 hand points
+  const dist = (a, b) => Math.hypot((lm[a].x - lm[b].x) * ar, lm[a].y - lm[b].y, ((lm[a].z || 0) - (lm[b].z || 0)) * ar);
+  const up = (tip, joint) => dist(tip, 0) > dist(joint, 0) * 1.15;
+  const index = up(8, 6), middle = up(12, 10), ring = up(16, 14), pinky = up(20, 18);
+  if (index && middle && ring && pinky) return "palm";
+  if (index && middle && !ring && !pinky) return "peace";
+  // Thumbs up: a fist with the thumb pointing up, well above the knuckles.
+  if (!index && !middle && !ring && !pinky && lm[4].y < lm[3].y && lm[3].y < lm[2].y && lm[5].y - lm[4].y > dist(0, 9) * 0.35) return "thumb";
+  return null;
+}
+async function startGestures() {
+  if (gest.on || gest.loading) return;
+  if (placeholderCam) { toast("Camera gestures need a camera"); return; }
+  gest.loading = true;
+  showGestUI();
+  try { await loadHandTracker(); }
+  catch (e) { console.warn(e); toast("Couldn't load gesture detection — check your internet and try again"); }
+  gest.loading = false;
+  if (!handTracker || left || !inCall) { showGestUI(); return; }
+  gest.on = true;
+  feedCam();
+  gest.stopTick = startTicker(gestureStep, 80);         // about 12 checks a second is plenty
+  showGestUI();
+  toast(camOn() ? "Camera gestures on: 👍 or ✌️ sends it, an open palm raises your hand" : "Turn your camera on so it can see your hand");
+}
+function stopGestures() {
+  if (gest.stopTick) { gest.stopTick(); gest.stopTick = null; }
+  gest.on = false; gest.cand = null; gest.n = 0;
+  if (draw.camVideo && !draw.pipe) draw.camVideo.srcObject = null;
+  showGestUI();
+}
+function showGestUI() {
+  $("gestLbl").textContent = gest.loading ? "Loading…" : "Camera gestures: " + (gest.on ? "on" : "off");
+  $("gestBtn").classList.toggle("on", gest.on);
+  $("reactBtn").classList.toggle("on", gest.on);
+}
+$("gestBtn").onclick = () => gest.on ? stopGestures() : startGestures();
+function gestureStep() {
+  const now = performance.now();
+  if (now - gest.last < 60) return;                     // skip ticks that piled up
+  gest.last = now;
+  const v = draw.camVideo;
+  // While hand drawing is on, the hand is for drawing, not reactions.
+  if (draw.hand || !handTracker || !camOn() || !v || v.readyState < 2 || !v.videoWidth) { gest.cand = null; return; }
+  const lm = detectHand(v);
+  const g = lm ? readReaction(lm, v.videoWidth / v.videoHeight) : null;
+  if (g !== gest.cand) { gest.cand = g; gest.n = 0; }
+  if (!g) return;
+  gest.n++;
+  // Hold it for about half a second (a bit longer to raise a hand); it fires once per gesture.
+  if (gest.n === (g === "palm" ? 9 : 6) && now - gest.sent > 1200) {
+    gest.sent = now;
+    if (g === "palm") { if (!myHand) { setHand(true); toast("You raised your hand ✋"); } }
+    else sendReaction(g === "thumb" ? "👍" : "✌️");
+  }
+}
+
+/* ---------------- face filters: drawn on my face in the video everyone sees ---------------- */
+const FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const FILTERS = [["", "🚫", "None"], ["glasses", "😎", "Sunglasses"], ["party", "🥳", "Party hat"],
+                 ["crown", "👑", "Crown"], ["stache", "🥸", "Moustache"], ["cat", "🐱", "Cat ears"]];
+const face = { filter: null, loading: false, tracker: null, pose: null, seen: 0, ts: 0, n: 0 };
+async function loadFaceTracker() {
+  if (face.tracker) return face.tracker;
+  const { vision, files } = await loadVision();
+  const opts = delegate => ({
+    baseOptions: { modelAssetPath: FACE_MODEL, delegate },
+    runningMode: "VIDEO", numFaces: 1,
+    minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+  });
+  try { face.tracker = await vision.FaceLandmarker.createFromOptions(files, opts("GPU")); }
+  catch (e) {
+    console.warn("Face tracking on the GPU failed, using the CPU", e);
+    face.tracker = await vision.FaceLandmarker.createFromOptions(files, opts("CPU"));
+  }
+  return face.tracker;
+}
+async function setFilter(name) {
+  closePops();
+  name = name || null;
+  if (name === face.filter) return;
+  if (name && placeholderCam) { toast("Filters need a camera"); return; }
+  if (name && !face.tracker) {
+    if (face.loading) return;
+    face.loading = true;
+    showFilterUI();
+    toast("Loading face filters…");
+    try { await loadFaceTracker(); }
+    catch (e) { console.warn(e); toast("Couldn't load face filters — check your internet and try again"); }
+    face.loading = false;
+    if (!face.tracker || left || !inCall) { showFilterUI(); return; }
+  }
+  face.filter = name;
+  face.pose = null;
+  pipeUpdate();
+  showFilterUI();
+  if (name && !camOn()) toast("Turn your camera on to see the filter");
+}
+function showFilterUI() {
+  for (const b of $("filterPop").children) b.classList.toggle("sel", (b.dataset.f || null) === face.filter);
+  $("filterBtn").classList.toggle("on", !!face.filter);
+}
+FILTERS.forEach(([id, emoji, label]) => {
+  const b = document.createElement("button");
+  b.className = "fopt";
+  b.dataset.f = id;
+  const e = document.createElement("b"); e.textContent = emoji;
+  const t = document.createElement("span"); t.textContent = label;
+  b.append(e, t);
+  b.onclick = () => setFilter(id);
+  $("filterPop").appendChild(b);
+});
+showFilterUI();
+$("filterBtn").onclick = () => openPop("filterPop", $("filterBtn"));
+
+// A few key points of the face (0–1 of the camera picture), smoothed so the filter doesn't jitter.
+function trackFace(now) {
+  const v = draw.camVideo;
+  if (++face.n % 2 || !face.tracker || screenStream || !camOn() || v.readyState < 2 || !v.videoWidth) return;   // every other frame is plenty
+  const ts = Math.max(now, face.ts + 1);
+  face.ts = ts;
+  let lm = null;
+  try { const r = face.tracker.detectForVideo(v, ts); lm = r && r.faceLandmarks && r.faceLandmarks[0]; }
+  catch (e) { console.warn(e); }
+  if (!lm || lm.length < 455) { if (now - face.seen > 500) face.pose = null; return; }
+  face.seen = now;
+  const P = i => [lm[i].x, lm[i].y], mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const pose = { eyeL: mid(P(33), P(133)), eyeR: mid(P(362), P(263)), top: P(10), nose: P(2), lip: P(13), cheekL: P(234), cheekR: P(454) };
+  if (face.pose) for (const k in pose) { const o = face.pose[k]; pose[k] = [o[0] + 0.5 * (pose[k][0] - o[0]), o[1] + 0.5 * (pose[k][1] - o[1])]; }
+  face.pose = pose;
+}
+function roundedRect(g, x, y, w, h, r) {
+  g.beginPath();
+  if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h);
+}
+// Draws the chosen filter in camera-picture coordinates (the caller mirrors the picture when needed).
+function drawFilter(g, W, H) {
+  const p = face.pose;
+  if (!p) return;
+  const X = q => [q[0] * W, q[1] * H];
+  const eL = X(p.eyeL), eR = X(p.eyeR), top = X(p.top), nose = X(p.nose), lip = X(p.lip), cL = X(p.cheekL), cR = X(p.cheekR);
+  const ang = Math.atan2(eR[1] - eL[1], eR[0] - eL[0]);          // head tilt
+  const fw = Math.hypot(cR[0] - cL[0], cR[1] - cL[1]);            // face width
+  const eyeD = Math.hypot(eR[0] - eL[0], eR[1] - eL[1]);           // distance between the eyes
+  if (fw < 10 || eyeD < 5) return;
+  g.save();
+  g.lineCap = "round"; g.lineJoin = "round";
+  if (face.filter === "glasses") {
+    g.translate((eL[0] + eR[0]) / 2, (eL[1] + eR[1]) / 2);
+    g.rotate(ang);
+    const lw = eyeD * 0.8, lh = eyeD * 0.52;
+    g.fillStyle = "rgba(15, 12, 25, .93)";
+    for (const s of [-1, 1]) { roundedRect(g, s * eyeD / 2 - lw / 2, -lh / 2, lw, lh, lh * 0.42); g.fill(); }
+    g.strokeStyle = "#141020"; g.lineWidth = eyeD * 0.07;
+    g.beginPath();
+    g.moveTo(-eyeD / 2 + lw / 2, -lh * 0.15); g.quadraticCurveTo(0, -lh * 0.42, eyeD / 2 - lw / 2, -lh * 0.15);   // bridge
+    g.moveTo(-eyeD / 2 - lw / 2, -lh * 0.2); g.lineTo(-fw / 2, -lh * 0.05);                                       // arms
+    g.moveTo(eyeD / 2 + lw / 2, -lh * 0.2); g.lineTo(fw / 2, -lh * 0.05);
+    g.stroke();
+    g.fillStyle = "rgba(255, 255, 255, .35)";                                                                    // shine
+    for (const s of [-1, 1]) { g.beginPath(); g.ellipse(s * eyeD / 2 - lw * 0.2, -lh * 0.14, lw * 0.13, lh * 0.1, -0.5, 0, Math.PI * 2); g.fill(); }
+  } else if (face.filter === "party") {
+    g.translate(top[0], top[1]);
+    g.rotate(ang);
+    const bw = fw * 0.6, hh = fw * 0.85, by = -fw * 0.02;
+    g.save();
+    g.beginPath(); g.moveTo(-bw / 2, by); g.lineTo(bw / 2, by); g.lineTo(0, by - hh); g.closePath();
+    g.clip();
+    for (let i = 0; i < 6; i++) {                                                                                // stripes
+      g.fillStyle = ["#8463d8", "#ffd23f", "#ff4d6d", "#4cc9f0", "#3ddc97", "#ffd23f"][i];
+      g.fillRect(-bw, by - hh * (i + 1) / 6, bw * 2, hh / 6 + 1);
+    }
+    g.restore();
+    g.fillStyle = "#ffd23f";
+    g.beginPath(); g.ellipse(0, by, bw * 0.55, fw * 0.045, 0, 0, Math.PI * 2); g.fill();                         // brim
+    g.fillStyle = "#ffffff";
+    g.beginPath(); g.arc(0, by - hh, fw * 0.07, 0, Math.PI * 2); g.fill();                                       // pompom
+  } else if (face.filter === "crown") {
+    g.translate(top[0], top[1]);
+    g.rotate(ang);
+    const cw = fw * 0.7, ch = fw * 0.36, by = -fw * 0.01;
+    const gold = g.createLinearGradient(0, by - ch, 0, by);
+    gold.addColorStop(0, "#ffe066"); gold.addColorStop(1, "#f08c00");
+    g.fillStyle = gold;
+    g.beginPath();
+    g.moveTo(-cw / 2, by); g.lineTo(-cw / 2, by - ch * 0.75); g.lineTo(-cw / 4, by - ch * 0.35); g.lineTo(0, by - ch);
+    g.lineTo(cw / 4, by - ch * 0.35); g.lineTo(cw / 2, by - ch * 0.75); g.lineTo(cw / 2, by); g.closePath();
+    g.fill();
+    g.strokeStyle = "#b8860b"; g.lineWidth = fw * 0.012; g.stroke();
+    g.fillStyle = "#d9480f"; g.fillRect(-cw / 2, by - ch * 0.2, cw, ch * 0.2);                                   // band
+    [["#e5484d", -cw / 4], ["#1c7ed6", 0], ["#2f9e44", cw / 4]].forEach(([col, x]) => {                          // jewels
+      g.fillStyle = col; g.beginPath(); g.arc(x, by - ch * 0.1, ch * 0.075, 0, Math.PI * 2); g.fill();
+    });
+    g.fillStyle = "#fff4c2";
+    [[-cw / 2, ch * 0.75], [0, ch], [cw / 2, ch * 0.75]].forEach(([x, h]) => { g.beginPath(); g.arc(x, by - h, ch * 0.06, 0, Math.PI * 2); g.fill(); });
+  } else if (face.filter === "stache") {
+    g.translate((nose[0] + lip[0]) / 2, (nose[1] + lip[1]) / 2);
+    g.rotate(ang);
+    const mw = fw * 0.42, mh = fw * 0.1;
+    g.fillStyle = "#3b2314";
+    for (const s of [-1, 1]) {
+      g.save();
+      g.scale(s, 1);
+      g.beginPath();
+      g.moveTo(0, -mh * 0.2);
+      g.bezierCurveTo(mw * 0.15, -mh * 0.6, mw * 0.35, -mh * 0.5, mw * 0.45, 0);
+      g.bezierCurveTo(mw * 0.55, mh * 0.3, mw * 0.62, -mh * 0.2, mw * 0.58, -mh * 0.6);                           // curl
+      g.bezierCurveTo(mw * 0.7, mh * 0.1, mw * 0.5, mh * 0.8, mw * 0.3, mh * 0.5);
+      g.bezierCurveTo(mw * 0.15, mh * 0.35, mw * 0.05, mh * 0.45, 0, mh * 0.3);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+  } else if (face.filter === "cat") {
+    g.translate(top[0], top[1]);
+    g.rotate(ang);
+    const ew = fw * 0.3, eh = fw * 0.36;
+    for (const s of [-1, 1]) {
+      const bx = s * fw * 0.3, by = fw * 0.04;
+      g.fillStyle = "#4a3a5c";
+      g.beginPath(); g.moveTo(bx - ew / 2, by); g.lineTo(bx + ew / 2, by); g.lineTo(bx + s * ew * 0.15, by - eh); g.closePath(); g.fill();
+      g.fillStyle = "#f4a3b4";
+      g.beginPath(); g.moveTo(bx - ew * 0.28, by - eh * 0.08); g.lineTo(bx + ew * 0.28, by - eh * 0.08); g.lineTo(bx + s * ew * 0.12, by - eh * 0.72); g.closePath(); g.fill();
+    }
+  }
+  g.restore();
+}
+
+/* ---------------- People panel: who's here, raised hands, and host controls ---------------- */
+let peopleOpen = false;
+const armed = new Map();                                // "action:id" -> time, for "click again to confirm"
+function togglePeople(open) {
+  peopleOpen = open;
+  $("people").classList.toggle("hidden", !open);
+  $("peopleBtn").classList.toggle("on", open);
+  if (open && chatOpen) toggleChat(false);
+  renderPeople();
+  layout();
+}
+$("peopleBtn").onclick = () => togglePeople(!peopleOpen);
+$("peopleClose").onclick = () => togglePeople(false);
+$("muteAll").onclick = () => request("muteall");
+function renderPeople() {
+  if (!peopleOpen) return;
+  const canManage = isHost || amCohost();
+  $("peopleTools").classList.toggle("hidden", !canManage);
+  const order = [...hands].sort((a, b) => a[1] - b[1]).map(([id]) => id);
+  const rows = [{ key: "me", id: myId, name: myName + " (You)", mic: micOn() }];
+  for (const id of calls.keys()) { const st = pstate.get(id); rows.push({ key: id, id, name: nameOf(id), mic: st ? st.mic : true }); }
+  const rank = r => r.id === hostId ? 0 : cohosts.has(r.id) ? 1 : 2;
+  rows.sort((a, b) => {
+    const ha = order.indexOf(a.key), hb = order.indexOf(b.key);
+    if (ha !== hb) return (ha < 0 ? 99 : ha) - (hb < 0 ? 99 : hb);   // raised hands first, in order
+    return rank(a) - rank(b) || a.name.localeCompare(b.name);
+  });
+  $("peopleTitle").textContent = "People (" + rows.length + ")";
+  const list = $("plist");
+  list.textContent = "";
+  const now = Date.now();
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "prow";
+    const av = document.createElement("div");
+    av.className = "pav";
+    av.textContent = (r.name.trim()[0] || "?").toUpperCase();
+    const main = document.createElement("div");
+    main.className = "pmain";
+    const nm = document.createElement("div");
+    nm.className = "pname";
+    nm.textContent = r.name;
+    const tags = document.createElement("div");
+    tags.className = "ptags";
+    const tag = (text, cls) => { const s = document.createElement("span"); s.className = "tag " + cls; s.textContent = text; tags.appendChild(s); };
+    const role = r.id && r.id === hostId ? "Host" : cohosts.has(r.id) ? "Co-host" : "";
+    if (role) tag(role, "role");
+    const hi = order.indexOf(r.key);
+    if (hi >= 0) tag("✋ " + (hi + 1), "hand");
+    if (!r.mic) tag("Muted", "mutedt");
+    const q = r.key === "me" ? myQuality : quality.get(r.key);
+    if (q) { const bars = document.createElement("span"); bars.innerHTML = "<i></i><i></i><i></i><i></i>"; paintBars(bars, q, r.key === "me"); tags.appendChild(bars); }
+    main.append(nm, tags);
+    // Host / co-host controls (nobody can act on the host).
+    if (canManage && r.key !== "me" && r.id !== hostId) {
+      const acts = document.createElement("div");
+      acts.className = "pacts";
+      const btn = (label, action, danger, confirm) => {
+        const key = action + ":" + r.id, isArmed = confirm && armed.has(key) && now - armed.get(key) < 3000;
+        const b = document.createElement("button");
+        b.textContent = isArmed ? "Sure? Click again" : label;
+        if (danger) b.classList.add("danger");
+        if (isArmed) b.classList.add("armed");
+        b.onclick = () => {
+          if (confirm && !isArmed) { armed.set(key, Date.now()); renderPeople(); setTimeout(renderPeople, 3100); return; }
+          armed.delete(key);
+          request(action, r.id);
+        };
+        acts.appendChild(b);
+      };
+      if (r.mic) btn("Mute", "mute");
+      if (hi >= 0) btn("Lower hand", "lowerhand");
+      if (isHost) btn(cohosts.has(r.id) ? "Remove co-host" : "Make co-host", cohosts.has(r.id) ? "uncohost" : "cohost");
+      if (isHost) btn("Make host", "makehost", false, true);
+      if (isHost || !cohosts.has(r.id)) btn("Remove", "remove", true, true);
+      main.appendChild(acts);
+    }
+    row.append(av, main);
+    list.appendChild(row);
+  }
+}
+
+/* ---------------- files and pictures in chat ---------------- */
+const MAX_FILE = 20 * 1024 * 1024;
+const PIC_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];   // shown in the chat (not SVG: it can hold code)
+const fileName = n => String(n || "file").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim().slice(0, 100) || "file";
+const fileSize = b => b < 1024 ? b + " B" : b < 1048576 ? Math.round(b / 1024) + " KB" : (b / 1048576).toFixed(1) + " MB";
+$("attach").onclick = () => $("fileInput").click();
+$("fileInput").onchange = async () => {
+  const f = $("fileInput").files[0];
+  $("fileInput").value = "";
+  if (!f) return;
+  if (f.size > MAX_FILE) { toast("Files can be up to 20 MB"); return; }
+  if (!f.size) { toast("That file is empty"); return; }
+  const to = $("chatTo").value;
+  const targets = to === "all" ? [...peerConns.values()].filter(c => c.open) : [peerConns.get(to)].filter(c => c && c.open);
+  if (!targets.length) { toast(to === "all" ? "There's nobody to send it to yet" : "Can't reach " + nameOf(to) + " right now"); return; }
+  let data;
+  try { data = await f.arrayBuffer(); } catch (e) { toast("Couldn't read that file"); return; }
+  const msg = { t: "file", name: fileName(f.name), mime: String(f.type || "").slice(0, 100), data, pm: to !== "all" };
+  for (const c of targets) try { c.send(msg); } catch (e) { console.warn(e); }   // goes straight to them, not via any server
+  const box = addFileMsg("me", msg.name, msg.mime, data, msg.pm, to);
+  // Big files take a moment: show "Sending…" until everything has left this device.
+  const status = document.createElement("div");
+  status.className = "fsend";
+  status.textContent = "Sending…";
+  box.appendChild(status);
+  const t0 = Date.now();
+  const poll = setInterval(() => {
+    const waiting = targets.reduce((s, c) => s + (c.open ? (c.bufferSize || 0) + (c.dataChannel ? c.dataChannel.bufferedAmount : 0) : 0), 0);
+    if (waiting === 0 || Date.now() - t0 > 180000) {
+      clearInterval(poll);
+      status.textContent = waiting === 0 ? "Sent ✓" : "Couldn't finish sending";
+    }
+  }, 400);
+};
+function receiveFile(id, msg) {
+  let data = msg.data;
+  if (ArrayBuffer.isView(data)) data = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  if (!(data instanceof ArrayBuffer) || !data.byteLength || data.byteLength > MAX_FILE) return;
+  addFileMsg(id, fileName(msg.name), String(msg.mime || ""), data, !!msg.pm);
+}
+function addFileMsg(fromId, name, mime, data, pm, toId) {
+  const box = document.createElement("div");
+  const pic = PIC_TYPES.includes(mime);
+  // Anything that isn't a picture is only offered as a download, never opened inside the app.
+  const dlUrl = URL.createObjectURL(new Blob([data], { type: "application/octet-stream" }));
+  if (pic) {
+    const url = URL.createObjectURL(new Blob([data], { type: mime }));
+    const img = document.createElement("img");
+    img.className = "pic";
+    img.alt = name;
+    img.src = url;
+    img.onclick = () => openViewer(url, dlUrl, name);
+    img.onerror = () => { img.remove(); box.appendChild(fileCard(name, data.byteLength, dlUrl)); };
+    box.appendChild(img);
+  } else box.appendChild(fileCard(name, data.byteLength, dlUrl));
+  addChat(fromId, box, pm, toId, pic ? "a picture" : "a file");
+  return box;
+}
+function fileCard(name, size, url) {
+  const card = document.createElement("div");
+  card.className = "fcard";
+  const icon = document.createElement("span");
+  icon.className = "fi";
+  icon.textContent = "📄";
+  const info = document.createElement("div");
+  const n = document.createElement("div");
+  n.className = "fn";
+  n.textContent = name;
+  const s = document.createElement("div");
+  s.className = "fs";
+  s.textContent = fileSize(size) + " · ";
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.textContent = "Download";
+  s.appendChild(a);
+  info.append(n, s);
+  card.append(icon, info);
+  return card;
+}
+function openViewer(url, dlUrl, name) {
+  $("viewerImg").src = url;
+  $("viewerDl").href = dlUrl;
+  $("viewerDl").download = name;
+  $("viewer").classList.remove("hidden");
+}
+$("viewerClose").onclick = () => $("viewer").classList.add("hidden");
+$("viewer").onclick = e => { if (e.target === $("viewer")) $("viewer").classList.add("hidden"); };
+
+/* ---------------- connection quality: bars on each tile ---------------- */
+// Every 2 seconds, ask each link how long a round trip takes and how many packets are getting lost.
+const quality = new Map(), qprev = new Map();
+let myQuality = null, weakPolls = 0, weakWarned = 0;
+const Q_WORDS = ["Checking…", "Poor", "Weak", "OK", "Good"];
+const qLevel = (rtt, loss) => rtt == null ? 0 : rtt < 150 && loss < 0.02 ? 4 : rtt < 300 && loss < 0.05 ? 3 : rtt < 600 && loss < 0.12 ? 2 : 1;
+function paintBars(el, q, mine) {
+  el.className = "qbars q" + (q ? q.level : 0);
+  el.title = (mine ? "Your connection: " : "Connection: ") + Q_WORDS[q ? q.level : 0] +
+    (q && q.rtt != null ? ` · ${Math.round(q.rtt)} ms delay · ${(q.loss * 100).toFixed(1)}% lost` + (q.kbps ? ` · ${Math.round(q.kbps)} kbps` : "") : "");
+}
+async function pollQuality() {
+  if (!inCall || left) return;
+  for (const [id, c] of [...calls]) {
+    const pc = c.peerConnection;
+    if (!pc || pc.connectionState === "closed") continue;
+    let rep;
+    try { rep = await pc.getStats(); } catch (e) { continue; }
+    const byId = new Map();
+    rep.forEach(r => byId.set(r.id, r));
+    let pair = null, lost = 0, got = 0, bytes = 0;
+    rep.forEach(r => { if (r.type === "transport" && r.selectedCandidatePairId) pair = byId.get(r.selectedCandidatePairId) || pair; });
+    if (!pair) rep.forEach(r => { if (!pair && r.type === "candidate-pair" && (r.selected || (r.nominated && r.state === "succeeded"))) pair = r; });
+    rep.forEach(r => {
+      if (r.type !== "inbound-rtp") return;
+      lost += Math.max(0, r.packetsLost || 0);
+      got += r.packetsReceived || 0;
+      if ((r.kind || r.mediaType) === "video") bytes += r.bytesReceived || 0;
+    });
+    const rtt = pair && pair.currentRoundTripTime != null ? pair.currentRoundTripTime * 1000 : null;
+    const p = qprev.get(id), now = performance.now();
+    let loss = 0, kbps = null;
+    if (p) {
+      const dl = Math.max(0, lost - p.lost), dg = Math.max(0, got - p.got);
+      loss = dl + dg > 0 ? dl / (dl + dg) : 0;
+      kbps = (bytes - p.bytes) * 8 / Math.max(1, now - p.t);
+    }
+    qprev.set(id, { lost, got, bytes, t: now });
+    if (!calls.has(id)) continue;
+    quality.set(id, { level: qLevel(rtt, loss), rtt, loss, kbps });
+  }
+  for (const [id, q] of quality) { const t = $("tile-" + id); if (t) paintBars(t.querySelector(".qbars"), q, false); }
+  // Mine: the average over everyone I'm connected to.
+  const qs = [...quality.values()].filter(q => q.rtt != null);
+  myQuality = qs.length ? (() => {
+    const rtt = qs.reduce((s, q) => s + q.rtt, 0) / qs.length, loss = qs.reduce((s, q) => s + q.loss, 0) / qs.length;
+    return { level: qLevel(rtt, loss), rtt, loss };
+  })() : null;
+  const mineEl = $("tile-me") && $("tile-me").querySelector(".qbars");
+  if (mineEl) { if (myQuality) paintBars(mineEl, myQuality, true); else mineEl.classList.add("hidden"); }
+  weakPolls = myQuality && myQuality.level === 1 ? weakPolls + 1 : 0;
+  if (weakPolls >= 3 && Date.now() - weakWarned > 60000) {
+    weakWarned = Date.now();
+    toast("Your connection looks weak — turning your camera off can help");
+  }
+  renderPeople();
+}
+setInterval(pollQuality, 2000);
 
 /* ---------------- chat ---------------- */
 function refreshRecipients() {
@@ -2019,8 +2970,8 @@ function refreshRecipients() {
   }
   sel.value = [...sel.options].some(o => o.value === keep) ? keep : "all";
 }
-function addChat(fromId, text, pm, toId) {
-  if (!text) return;
+function addChat(fromId, content, pm, toId, kind) {   // content: text, or a picture/file box
+  if (!content) return;
   $("noMsgs").classList.add("hidden");
   const mine = fromId === "me";
   const el = document.createElement("div");
@@ -2032,7 +2983,7 @@ function addChat(fromId, text, pm, toId) {
                           : nameOf(fromId) + (pm ? " · private to you" : "")) + " · " + time;
   const txt = document.createElement("div");
   txt.className = "txt";
-  txt.textContent = text;
+  if (typeof content === "string") txt.textContent = content; else txt.appendChild(content);
   el.append(who, txt);
   $("msgs").appendChild(el);
   $("msgs").scrollTop = $("msgs").scrollHeight;
@@ -2040,13 +2991,15 @@ function addChat(fromId, text, pm, toId) {
     unread++;
     $("badge").textContent = unread;
     $("badge").classList.remove("hidden");
-    toast((pm ? "Private message from " : "Message from ") + nameOf(fromId));
+    toast(kind ? nameOf(fromId) + (pm ? " privately sent you " : " sent ") + kind
+               : (pm ? "Private message from " : "Message from ") + nameOf(fromId));
   }
 }
 function toggleChat(open) {
   chatOpen = open;
   $("chat").classList.toggle("hidden", !open);
   $("chatBtn").classList.toggle("on", open);
+  if (open && peopleOpen) togglePeople(false);
   if (open) { unread = 0; $("badge").classList.add("hidden"); $("chatInput").focus(); $("msgs").scrollTop = $("msgs").scrollHeight; }
   layout();
 }
