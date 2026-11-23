@@ -135,15 +135,44 @@
            font-size: 13px; box-shadow: 0 8px 24px rgba(110, 80, 190, .25); animation: pop .2s ease-out; }
   @keyframes pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
+  /* ---------- Drawing ---------- */
+  .tile canvas.board { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--tile);
+                       touch-action: none; cursor: crosshair; }
+  #drawBar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;
+             background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 6px 10px;
+             box-shadow: 0 10px 30px rgba(110, 80, 190, .18); max-width: 100%; }
+  #swatches { display: flex; gap: 6px; }
+  .sw { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+  .sw.sel { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.1); }
+  .dsep { width: 1px; height: 24px; background: var(--line); }
+  .dctl { height: 34px; padding: 0 12px; border-radius: 999px; background: var(--panel2); display: inline-flex;
+          align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+  .dctl:hover { background: #e5dafa; }
+  .dctl.on { background: var(--accent); color: #fff; }
+  .dctl svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;
+              stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  #sizeDot { width: 18px; height: 18px; display: grid; place-items: center; }
+  #sizeDot i { display: block; border-radius: 50%; background: currentColor; }
+  #handHelp { font-size: 12px; color: var(--muted); text-align: center; }
+
   @media (max-width: 700px) {
+    .dctl .t, .dsep { display: none; }
+    .dctl { padding: 0 8px; }
+    #drawBar, #swatches { gap: 5px; }
+    #drawBar { padding: 6px 8px; }
+    .sw { width: 24px; height: 24px; }
+    #bar { padding: 10px 6px 8px; }
     .ctl .lbl { display: none; }
-    .ctl, .ctl.icon { padding: 0; width: 44px; min-width: 44px; height: 44px; }
-    #controls { gap: 6px; padding: 7px 9px; }
+    .ctl, .ctl.icon { padding: 0; width: 40px; min-width: 40px; height: 40px; }
+    #controls { gap: 4px; padding: 6px 8px; border-radius: 26px; }
     #main { padding: 0 6px; }
     #grid { gap: 6px; }
     .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
     #chat { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
     #topbar .title { display: none; }
+  }
+  @media (max-width: 370px) {
+    .ctl, .ctl.icon { width: 36px; min-width: 36px; height: 36px; }
   }
 </style>
 </head>
@@ -187,6 +216,25 @@
     </aside>
   </div>
   <div id="bar">
+    <div id="drawBar" class="hidden">
+      <div id="swatches"></div>
+      <span class="dsep"></span>
+      <button class="dctl" id="penSize" title="Pen size"><span id="sizeDot"><i></i></span><span class="t" id="sizeLbl">Medium</span></button>
+      <button class="dctl" id="undo" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>
+        <span class="t">Undo</span>
+      </button>
+      <button class="dctl" id="clearInk" title="Clear the drawing">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+        <span class="t">Clear</span>
+      </button>
+      <span class="dsep"></span>
+      <button class="dctl" id="handBtn" title="Draw in the air with your finger">
+        <svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13"/><path d="M17 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-5.6-2.8L3.6 15.2a1.6 1.6 0 0 1 2.5-2L8 15"/></svg>
+        <span class="t" id="handLbl">Hand drawing</span>
+      </button>
+    </div>
+    <div id="handHelp" class="hidden">☝️ Index finger up = draw · ✌️ Two fingers up = move without drawing · 🖐️ Hold open palm = clear</div>
     <div id="controls">
       <button class="ctl icon" id="mic" title="Microphone">
         <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
@@ -200,6 +248,10 @@
       <button class="ctl" id="share" title="Share screen">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
         <span class="lbl">Share screen</span>
+      </button>
+      <button class="ctl" id="draw" title="Draw on your video">
+        <svg viewBox="0 0 24 24"><path d="M4 20l4.5-1L19 8.5 15.5 5 5 15.5z"/><path d="M13.5 7l3.5 3.5"/></svg>
+        <span class="lbl">Draw</span>
       </button>
       <button class="ctl" id="chatBtn" title="Chat">
         <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
@@ -350,8 +402,14 @@ function makeTile(id, label) {
   sharing.className = "badge sharing hidden"; sharing.textContent = "Sharing screen";
   badges.append(sharing, muted);
   tile.append(video, avatar, name, badges);
-  tile.onclick = () => { pinnedId = pinnedId === id ? null : id; autoPinned = false; layout(); };
-  tile.ondblclick = () => { if (tile.requestFullscreen) tile.requestFullscreen().catch(() => {}); };
+  tile.onclick = () => {
+    if (id === "me" && draw.on) return;            // clicks on my own tile are for drawing
+    pinnedId = pinnedId === id ? null : id; autoPinned = false; layout();
+  };
+  tile.ondblclick = () => {
+    if (id === "me" && draw.on) return;
+    if (tile.requestFullscreen) tile.requestFullscreen().catch(() => {});
+  };
   $("grid").appendChild(tile);
   layout();
   return tile;
@@ -367,8 +425,13 @@ function renderPeer(id) {
   const st = pstate.get(id);
   const stream = tile.querySelector("video").srcObject;
   const hasVideo = !!stream && stream.getVideoTracks().length > 0;
-  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing), mic: st.mic, sharing: st.sharing }
+  // Someone drawing with their camera off still sends a picture (their drawing board).
+  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing || st.drawing), mic: st.mic, sharing: st.sharing }
                      : { video: hasVideo, mic: true, sharing: false });
+}
+function rearCam() {
+  const vt = localStream && localStream.getVideoTracks()[0];
+  return !!vt && !!vt.getSettings && vt.getSettings().facingMode === "environment";
 }
 function updateLocalTile(force) {
   const tile = $("tile-me");
@@ -376,17 +439,25 @@ function updateLocalTile(force) {
   const video = tile.querySelector("video");
   const src = screenStream || localStream;
   if (force || video.srcObject !== src) { video.srcObject = null; video.srcObject = src; }
-  const vt = localStream.getVideoTracks()[0];
-  const rear = !!vt && vt.getSettings && vt.getSettings().facingMode === "environment";
-  video.classList.toggle("mirror", !screenStream && !rear);       // mirror only the selfie camera
-  paintTile(tile, { video: !!screenStream || camOn(), mic: micOn(), sharing: !!screenStream });
+  video.classList.toggle("mirror", !screenStream && !rearCam());   // mirror only the selfie camera
+  // While drawing, my tile shows the drawing canvas itself (exactly what others see).
+  const drawing = draw.on && !!draw.canvas;
+  if (drawing && draw.canvas.parentNode !== tile) tile.insertBefore(draw.canvas, tile.firstChild);
+  if (!drawing && draw.canvas && draw.canvas.parentNode === tile) draw.canvas.remove();
+  video.classList.toggle("hidden", drawing);
+  paintTile(tile, { video: drawing || !!screenStream || camOn(), mic: micOn(), sharing: !!screenStream });
 }
 
 /* ---------------- what I send to others ---------------- */
+// The picture everyone gets from me: my drawing canvas, my shared screen, or my camera.
+function currentVideoTrack() {
+  if (draw.on && draw.track) return draw.track;
+  return screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+}
 function outgoingStream() {
   const tracks = [];
   const audio = mixedTrack || localStream.getAudioTracks()[0];
-  const video = screenStream ? screenStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+  const video = currentVideoTrack();
   if (audio) tracks.push(audio);
   if (video) tracks.push(video);
   return new MediaStream(tracks);
@@ -410,7 +481,7 @@ function blackTrack() {            // stand-in picture for people with no camera
 }
 
 /* ---------------- status + chat links between people ---------------- */
-function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream }; }
+function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on }; }
 function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
 function sendState() { broadcast(myState()); updateLocalTile(); }
 
@@ -430,7 +501,7 @@ function onPeerMsg(id, msg) {
   if (!msg || typeof msg !== "object") return;
   if (msg.t === "state") {
     const before = pstate.get(id);
-    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing };
+    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing };
     pstate.set(id, now);
     renderPeer(id);
     // Put a shared screen in the big slot automatically.
@@ -764,6 +835,7 @@ function enterCallUI() {
   updateLocalTile(true);
   if (placeholderCam) $("cam").classList.add("hidden");
   if (!navigator.mediaDevices.getDisplayMedia) $("share").classList.add("hidden");
+  if (!HTMLCanvasElement.prototype.captureStream) $("draw").classList.add("hidden");
   refreshCams();
   layout();
 }
@@ -779,6 +851,7 @@ function leaveCall(message) {
     calls.clear();
     if (p) try { p.destroy(); } catch (e) {}
   }, 300);
+  stopDrawing(true);
   for (const s of [localStream, screenStream]) if (s) s.getTracks().forEach(t => t.stop());
   if (audioCtx) try { audioCtx.close(); } catch (e) {}
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -834,7 +907,8 @@ async function flipCamera() {
   fresh.enabled = wasOn;
   localStream.removeTrack(old);
   localStream.addTrack(fresh);
-  if (!screenStream) await swapOutgoing("video", fresh);
+  if (draw.on) drawSources();                       // the drawing canvas now reads the new camera
+  else if (!screenStream) await swapOutgoing("video", fresh);
   updateLocalTile(true);
   sendState();
   flipping = false;
@@ -846,7 +920,8 @@ async function stopSharing() {
   if (!screenStream) return;
   screenStream.getTracks().forEach(t => t.stop());
   screenStream = null;
-  await swapOutgoing("video", localStream.getVideoTracks()[0]);
+  if (draw.on) drawSources();                       // keep drawing, now on the camera
+  await swapOutgoing("video", currentVideoTrack());
   if (mixedTrack) {
     mixedTrack = null;
     await swapOutgoing("audio", localStream.getAudioTracks()[0]);
@@ -863,7 +938,8 @@ $("share").onclick = async () => {
   screenStream = s;
   const track = s.getVideoTracks()[0];
   track.onended = stopSharing;                        // browser's own "Stop sharing" button
-  await swapOutgoing("video", track);
+  if (draw.on) drawSources();                         // drawing continues on top of the shared screen
+  await swapOutgoing("video", currentVideoTrack());
 
   const mic = localStream.getAudioTracks()[0];
   if (s.getAudioTracks().length) {                    // mix the screen's sound with my mic
@@ -881,6 +957,399 @@ $("share").onclick = async () => {
   $("share").classList.add("on");
   sendState();
 };
+
+/* ---------------- drawing on my video: mouse, touch, or a finger in the air ---------------- */
+// Everyone sees the drawing because, while drawing, I send a canvas (my picture + the drawing)
+// instead of my plain camera. Hand tracking uses MediaPipe and only loads if someone turns it on.
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3";
+const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const INK_COLORS = ["#ff4d6d", "#ffd23f", "#3ddc97", "#4cc9f0", "#a07cf0", "#ffffff"];
+const PEN_SIZES = [[4, "Thin"], [8, "Medium"], [16, "Thick"]];    // pixels on a 1280-wide picture
+const BOARD = "#1d1630";                 // background when my camera is off
+
+const draw = {
+  on: false, hand: false, handLoading: false,
+  canvas: null, g: null,                 // what everyone sees: picture + drawing + hand pointer
+  ink: null, ig: null,                   // only the drawing, kept apart so it's cheap to redraw
+  track: null, stopTick: null, last: 0,
+  camVideo: null, scrVideo: null,        // hidden players that feed the canvas
+  source: null,                          // "cam" or "screen"
+  strokes: [], penStroke: null, pointerId: null,
+  color: INK_COLORS[0], size: 1,
+  prevPin: null, cursor: null,
+  hs: null,                              // hand-tracking state
+};
+let handTracker = null;                  // MediaPipe HandLandmarker, loaded the first time it's needed
+
+function setupDrawing() {
+  if (draw.canvas) return;
+  const c = document.createElement("canvas");
+  c.className = "board";
+  c.width = 1280; c.height = 720;
+  draw.canvas = c; draw.g = c.getContext("2d");
+  draw.ink = document.createElement("canvas");
+  draw.ink.width = c.width; draw.ink.height = c.height;
+  draw.ig = draw.ink.getContext("2d");
+  inkStyle();
+  // drawImage needs a playing <video>. These stay on the page (invisible) so the browser keeps them running.
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;overflow:hidden";
+  const player = () => {
+    const v = document.createElement("video");
+    v.muted = true; v.playsInline = true; v.setAttribute("playsinline", "");
+    box.appendChild(v);
+    return v;
+  };
+  draw.camVideo = player(); draw.scrVideo = player();
+  document.body.appendChild(box);
+
+  // Mouse, pen or finger on the screen: draw on my tile.
+  c.addEventListener("pointerdown", e => {
+    if (!draw.on || draw.pointerId !== null || e.button > 0) return;
+    e.preventDefault();
+    try { c.setPointerCapture(e.pointerId); } catch (err) {}
+    draw.pointerId = e.pointerId;
+    draw.penStroke = startStroke(...toBoard(e));
+  });
+  c.addEventListener("pointermove", e => {
+    if (e.pointerId !== draw.pointerId || !draw.penStroke) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const ev of evs.length ? evs : [e]) addPoint(draw.penStroke, ...toBoard(ev));
+  });
+  const up = e => { if (e.pointerId === draw.pointerId) { draw.pointerId = null; draw.penStroke = null; } };
+  c.addEventListener("pointerup", up);
+  c.addEventListener("pointercancel", up);
+  c.addEventListener("lostpointercapture", up);
+}
+
+// Screen position -> position on the picture (0–1), allowing for the bars around a "contain" picture.
+function toBoard(e) {
+  const c = draw.canvas, r = c.getBoundingClientRect();
+  const s = Math.min(r.width / c.width, r.height / c.height), w = c.width * s, h = c.height * s;
+  const x = (e.clientX - r.left - (r.width - w) / 2) / w, y = (e.clientY - r.top - (r.height - h) / 2) / h;
+  return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+}
+
+/* The drawing is a list of strokes. Points are stored as 0–1 fractions of the picture,
+   so the drawing survives the picture changing size. */
+function inkStyle() { draw.ig.lineCap = "round"; draw.ig.lineJoin = "round"; }
+function inkSegment(st, i) {             // draw the piece of a stroke that ends at point i
+  const ig = draw.ig, W = draw.ink.width, H = draw.ink.height, p = st.p;
+  const lw = Math.max(1.5, st.w * W);
+  ig.strokeStyle = ig.fillStyle = st.c;
+  ig.lineWidth = lw;
+  ig.beginPath();
+  if (i === 0) { ig.arc(p[0] * W, p[1] * H, lw / 2, 0, Math.PI * 2); ig.fill(); return; }
+  ig.moveTo(p[2 * i - 2] * W, p[2 * i - 1] * H);
+  ig.lineTo(p[2 * i] * W, p[2 * i + 1] * H);
+  ig.stroke();
+}
+function redrawInk() {
+  if (!draw.ig) return;
+  draw.ig.clearRect(0, 0, draw.ink.width, draw.ink.height);
+  for (const st of draw.strokes) for (let i = 0; i < st.p.length / 2; i++) inkSegment(st, i);
+}
+function startStroke(x, y) {
+  const st = { c: draw.color, w: PEN_SIZES[draw.size][0] / 1280, p: [x, y] };
+  draw.strokes.push(st);
+  inkSegment(st, 0);
+  return st;
+}
+function addPoint(st, x, y) {
+  const p = st.p, n = p.length;
+  if (Math.hypot(x - p[n - 2], y - p[n - 1]) < 0.0015) return;      // ignore tiny wiggles
+  p.push(x, y);
+  inkSegment(st, p.length / 2 - 1);
+}
+function clearInk() {
+  draw.strokes = [];
+  draw.penStroke = null;
+  if (draw.hs) draw.hs.stroke = null;
+  redrawInk();
+}
+function undoInk() {
+  const st = draw.strokes.pop();
+  if (!st) return;
+  if (st === draw.penStroke) draw.penStroke = null;
+  if (draw.hs && st === draw.hs.stroke) draw.hs.stroke = null;
+  redrawInk();
+}
+
+// Point the hidden players at my current camera and shared screen.
+function drawSources() {
+  if (!draw.on) return;
+  const feed = (v, track) => {
+    const now = v.srcObject && v.srcObject.getVideoTracks()[0];
+    if (now === track) return;
+    v.srcObject = track ? new MediaStream([track]) : null;
+    if (track) v.play().catch(() => {});
+  };
+  feed(draw.camVideo, localStream.getVideoTracks()[0]);
+  feed(draw.scrVideo, screenStream ? screenStream.getVideoTracks()[0] : null);
+  const src = screenStream ? "screen" : "cam";
+  if (draw.source && draw.source !== src) clearInk();      // a drawing made on my face doesn't belong on my screen
+  draw.source = src;
+}
+
+function resizeBoard(w, h) {
+  draw.canvas.width = w; draw.canvas.height = h;
+  draw.ink.width = w; draw.ink.height = h;
+  inkStyle();
+  redrawInk();
+}
+// One frame of what everyone sees.
+function drawFrame() {
+  const c = draw.canvas, g = draw.g, sharing = !!screenStream;
+  const v = sharing ? draw.scrVideo : draw.camVideo;
+  const live = (sharing || camOn()) && v.readyState >= 2 && v.videoWidth > 0;
+  if (live) {                            // match the canvas to the picture (capped so phones keep up)
+    const s = Math.min(1, (sharing ? 1920 : 1280) / v.videoWidth);
+    const w = Math.round(v.videoWidth * s), h = Math.round(v.videoHeight * s);
+    if (c.width !== w || c.height !== h) resizeBoard(w, h);
+  }
+  const W = c.width, H = c.height;
+  g.fillStyle = BOARD;
+  g.fillRect(0, 0, W, H);
+  if (live) {
+    // Selfie camera: send it mirrored while drawing, so writing reads the right way round for everyone.
+    if (!sharing && !rearCam()) { g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(v, 0, 0, W, H); g.restore(); }
+    else g.drawImage(v, 0, 0, W, H);
+  }
+  g.drawImage(draw.ink, 0, 0);
+  drawCursor(g, W);
+}
+// The hand pointer, so everyone can see where I'm pointing.
+function drawCursor(g, W) {
+  const cur = draw.cursor;
+  if (!cur) return;
+  const H = draw.canvas.height, x = cur.x * W, y = cur.y * H, u = W / 1280;
+  const r = Math.max(7, PEN_SIZES[draw.size][0] / 2 + 4) * u;
+  g.lineWidth = 3 * u;
+  g.beginPath();
+  if (cur.mode === "draw") {
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fillStyle = draw.color; g.fill();
+    g.strokeStyle = "#fff"; g.stroke();
+  } else if (cur.mode === "palm") {      // a ring that fills up while the palm is held open
+    g.arc(x, y, 30 * u, 0, Math.PI * 2);
+    g.strokeStyle = "rgba(255,255,255,.35)"; g.stroke();
+    g.beginPath();
+    g.arc(x, y, 30 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, cur.progress));
+    g.strokeStyle = "#fff"; g.lineWidth = 6 * u; g.stroke();
+  } else {
+    g.arc(x, y, r + 2 * u, 0, Math.PI * 2);
+    g.strokeStyle = "#fff"; g.stroke();
+    g.beginPath(); g.arc(x, y, r - 1 * u, 0, Math.PI * 2);
+    g.strokeStyle = draw.color; g.lineWidth = 2 * u; g.stroke();
+  }
+}
+
+// A steady clock for redrawing the canvas. A worker's timer keeps running when the tab is
+// in the background, so others don't see my video freeze if I switch tabs.
+function startTicker(fn) {
+  try {
+    const url = URL.createObjectURL(new Blob(["setInterval(() => postMessage(0), 33);"], { type: "text/javascript" }));
+    const w = new Worker(url);
+    w.onmessage = fn;
+    return () => { w.terminate(); URL.revokeObjectURL(url); };
+  } catch (e) {
+    const t = setInterval(fn, 33);
+    return () => clearInterval(t);
+  }
+}
+function tick() {
+  const now = performance.now();
+  if (now - draw.last < 22) return;      // skip ticks that piled up while the page was busy
+  draw.last = now;
+  if (draw.hand) trackHand(now);
+  drawFrame();
+}
+
+function startDrawing() {
+  if (draw.on || !inCall || left) return;
+  setupDrawing();
+  draw.on = true;
+  draw.source = null;
+  clearInk();
+  drawSources();
+  drawFrame();
+  draw.track = draw.canvas.captureStream(30).getVideoTracks()[0];
+  draw.stopTick = startTicker(tick);
+  swapOutgoing("video", draw.track);
+  draw.prevPin = { id: pinnedId, auto: autoPinned };      // make my tile the big one while I draw
+  pinnedId = "me"; autoPinned = false;
+  $("draw").classList.add("on");
+  $("drawBar").classList.remove("hidden");
+  $("handBtn").classList.toggle("hidden", placeholderCam);
+  layout();
+  sendState();
+}
+function stopDrawing(quiet) {
+  if (!draw.on) return;
+  draw.on = false;
+  stopHand();
+  if (draw.stopTick) { draw.stopTick(); draw.stopTick = null; }
+  const old = draw.track;
+  draw.track = null;
+  draw.pointerId = null;
+  clearInk();
+  draw.camVideo.srcObject = null; draw.scrVideo.srcObject = null;
+  $("draw").classList.remove("on");
+  $("drawBar").classList.add("hidden");
+  if (quiet) { if (old) old.stop(); return; }
+  swapOutgoing("video", currentVideoTrack()).then(() => { if (old) old.stop(); });
+  if (pinnedId === "me" && !autoPinned && draw.prevPin) { pinnedId = draw.prevPin.id; autoPinned = draw.prevPin.auto; }
+  draw.prevPin = null;
+  layout();
+  sendState();
+}
+
+/* ---- drawing in the air: MediaPipe finds 21 points on my hand in each camera frame ---- */
+async function loadHandTracker() {
+  if (handTracker) return handTracker;
+  const vision = await import(MP + "/vision_bundle.mjs");
+  const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
+  const opts = delegate => ({
+    baseOptions: { modelAssetPath: HAND_MODEL, delegate },
+    runningMode: "VIDEO", numHands: 1,
+    minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.6, minTrackingConfidence: 0.5,
+  });
+  try { handTracker = await vision.HandLandmarker.createFromOptions(files, opts("GPU")); }
+  catch (e) {
+    console.warn("Hand tracking on the GPU failed, using the CPU", e);
+    handTracker = await vision.HandLandmarker.createFromOptions(files, opts("CPU"));
+  }
+  return handTracker;
+}
+async function startHand() {
+  if (draw.hand || draw.handLoading || !draw.on) return;
+  if (placeholderCam) { toast("Hand drawing needs a camera"); return; }
+  draw.handLoading = true;
+  $("handBtn").classList.add("on");
+  $("handLbl").textContent = "Loading…";
+  try { await loadHandTracker(); }
+  catch (e) { console.warn(e); toast("Couldn't load hand tracking — check your internet and try again"); }
+  draw.handLoading = false;
+  $("handLbl").textContent = "Hand drawing";
+  if (!handTracker || !draw.on) { $("handBtn").classList.remove("on"); return; }
+  draw.hand = true;
+  draw.hs = { mode: "none", cand: null, candN: 0, mark: 0, p: null, stroke: null, seen: 0, lastTs: 0, palmAt: 0, cleared: false };
+  $("handHelp").classList.remove("hidden");
+  toast(camOn() ? "Hand drawing on — raise your index finger to draw" : "Turn your camera on so it can see your hand");
+}
+function stopHand() {
+  draw.hand = false;
+  draw.cursor = null;
+  if (draw.hs) draw.hs.stroke = null;
+  $("handBtn").classList.remove("on");
+  $("handHelp").classList.add("hidden");
+}
+
+// Which fingers are up? A finger is up when its tip is clearly farther from the wrist than its middle joint.
+function readGesture(lm, ar) {
+  const dist = (a, b) => Math.hypot((lm[a].x - lm[b].x) * ar, lm[a].y - lm[b].y, ((lm[a].z || 0) - (lm[b].z || 0)) * ar);
+  const up = (tip, joint) => dist(tip, 0) > dist(joint, 0) * 1.15;
+  const index = up(8, 6), middle = up(12, 10), ring = up(16, 14), pinky = up(20, 18);
+  if (index && middle && ring && pinky) return "palm";    // open hand: hold to clear
+  if (index && middle) return "move";                     // two fingers: move without drawing
+  if (index) return "draw";                               // just the index finger: draw
+  return "none";
+}
+
+// Camera picture (0–1) -> position on what everyone sees (0–1).
+function handToBoard(pt) {
+  let x = pt.x, y = pt.y;
+  if (draw.source === "screen") { x = (x - 0.15) / 0.7; y = (y - 0.15) / 0.7; }   // reach the whole screen comfortably
+  if (!rearCam()) x = 1 - x;                       // the selfie view is mirrored
+  return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+}
+
+function trackHand(now) {
+  const hs = draw.hs, v = draw.camVideo;
+  let lm = null;
+  if (handTracker && camOn() && v.readyState >= 2 && v.videoWidth > 0) {
+    const ts = Math.max(now, hs.lastTs + 1);       // MediaPipe needs ever-increasing timestamps
+    hs.lastTs = ts;
+    try { const r = handTracker.detectForVideo(v, ts); lm = r && r.landmarks && r.landmarks[0]; }
+    catch (e) { console.warn(e); }
+  }
+  if (!lm) {                                       // no hand: end the line if it stays gone
+    if (now - hs.seen > 250) {
+      hs.stroke = null; hs.mode = "none"; hs.cand = null; hs.candN = 0; hs.p = null; hs.palmAt = 0;
+      draw.cursor = null;
+    }
+    return;
+  }
+  hs.seen = now;
+
+  // A new gesture only counts after 3 frames in a row, so one shaky frame doesn't break a line.
+  const gesture = readGesture(lm, v.videoWidth / v.videoHeight);
+  if (gesture === hs.mode) { hs.cand = null; hs.candN = 0; }
+  else if (gesture === hs.cand) hs.candN++;
+  else { hs.cand = gesture; hs.candN = 1; hs.mark = hs.stroke ? hs.stroke.p.length : 0; }
+  if (hs.cand && hs.candN >= 3) {
+    if (hs.stroke && hs.mark >= 2 && hs.stroke.p.length > hs.mark) {
+      hs.stroke.p.length = hs.mark;                // remove the tail drawn while the hand changed shape
+      redrawInk();
+    }
+    hs.stroke = null;
+    hs.mode = hs.cand; hs.cand = null; hs.candN = 0;
+  }
+
+  // Follow the index fingertip: smooth out small jitter, but keep up with fast moves.
+  const [x, y] = handToBoard(lm[8]);
+  if (!hs.p) hs.p = [x, y];
+  else {
+    const a = Math.min(1, 0.35 + 8 * Math.hypot(x - hs.p[0], y - hs.p[1]));
+    hs.p = [hs.p[0] + a * (x - hs.p[0]), hs.p[1] + a * (y - hs.p[1])];
+  }
+  if (hs.mode === "draw") {
+    if (!hs.stroke) hs.stroke = startStroke(hs.p[0], hs.p[1]);
+    else addPoint(hs.stroke, hs.p[0], hs.p[1]);
+  }
+
+  let progress = 0, at = hs.p;
+  if (hs.mode === "palm") {                        // hold an open palm for 0.8 s to clear
+    if (!hs.palmAt) hs.palmAt = now;
+    progress = (now - hs.palmAt) / 800;
+    at = handToBoard(lm[9]);                       // centre of the palm
+    if (progress >= 1 && !hs.cleared) {
+      hs.cleared = true;
+      if (draw.strokes.length) { clearInk(); toast("Drawing cleared"); }
+    }
+  } else { hs.palmAt = 0; hs.cleared = false; }
+  draw.cursor = { x: at[0], y: at[1], mode: hs.mode, progress };
+}
+
+// Drawing toolbar
+INK_COLORS.forEach((col, i) => {
+  const b = document.createElement("button");
+  b.className = "sw" + (i === 0 ? " sel" : "");
+  b.style.background = col;
+  b.title = "Pen colour";
+  b.onclick = () => {
+    draw.color = col;
+    document.querySelectorAll(".sw").forEach(s => s.classList.toggle("sel", s === b));
+  };
+  $("swatches").appendChild(b);
+});
+function showPenSize() {
+  const [px, name] = PEN_SIZES[draw.size], dot = $("sizeDot").querySelector("i");
+  dot.style.width = dot.style.height = Math.round(4 + px * 0.75) + "px";
+  $("sizeLbl").textContent = name;
+}
+showPenSize();
+$("penSize").onclick = () => { draw.size = (draw.size + 1) % PEN_SIZES.length; showPenSize(); };
+$("undo").onclick = undoInk;
+$("clearInk").onclick = clearInk;
+$("handBtn").onclick = () => draw.hand ? stopHand() : startHand();
+$("draw").onclick = () => draw.on ? stopDrawing() : startDrawing();
+addEventListener("keydown", e => {                 // Ctrl+Z / Cmd+Z undoes the last line
+  if (!draw.on || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  e.preventDefault();
+  undoInk();
+});
 
 /* ---------------- chat ---------------- */
 function refreshRecipients() {
