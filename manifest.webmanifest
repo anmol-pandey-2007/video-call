@@ -1,0 +1,17 @@
+{
+  "name": "Group Video Call",
+  "short_name": "Video Call",
+  "description": "Group video calls in your browser: share a link and talk. © 2026 Anmol Pandey.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f1ff",
+  "theme_color": "#8463d8",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

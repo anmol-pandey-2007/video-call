@@ -3,7 +3,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Install as a phone app: these files sit next to index.html in the repo -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#8463d8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Video Call">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="author" content="Anmol Pandey">
 <meta name="copyright" content="© 2026 Anmol Pandey">
 <title>Group Video Call</title>
@@ -53,7 +62,7 @@
 
   /* ---------- Call screen ---------- */
   #call { height: 100dvh; display: flex; flex-direction: column; }
-  #topbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+  #topbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); }
   #topbar .title { font-weight: 700; }
   .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
           padding: 3px 10px; font-size: 13px; color: var(--muted); white-space: nowrap; }
@@ -61,11 +70,13 @@
   #status { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap; }
   #main { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 0 12px; }
+  #stage { flex: 1; min-width: 0; min-height: 0; display: flex; position: relative; }
   #grid { flex: 1; min-width: 0; min-height: 0; display: grid; gap: 10px; }
   .tile { position: relative; background: var(--tile); border-radius: 16px; overflow: hidden;
           border: 2px solid transparent; min-height: 0; min-width: 0; cursor: pointer;
-          box-shadow: 0 6px 18px rgba(80, 55, 150, .18); }
+          box-shadow: 0 6px 18px rgba(80, 55, 150, .18); transition: border-color .15s, box-shadow .15s; }
   .tile.pinned { border-color: var(--accent2); }
+  .tile.speaking { border-color: #3ddc97; box-shadow: 0 0 0 2px #3ddc97, 0 0 24px rgba(61, 220, 151, .5); }
   /* contain = the whole picture is always visible, never cropped */
   .tile video { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--tile); }
   .tile video.mirror { transform: scaleX(-1); }
@@ -79,7 +90,9 @@
   .tile .badge { padding: 3px 8px; border-radius: 999px; font-size: 11px; color: #fff; background: rgba(29, 22, 48, .7); }
   .tile .badge.muted { background: var(--danger); }
 
-  #bar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 10px; }
+  #bar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 10px;
+         padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .ctl { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
   #controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; background: var(--panel);
               border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px;
               box-shadow: 0 10px 30px rgba(110, 80, 190, .18); }
@@ -213,12 +226,48 @@
   .emo:hover { background: #e5dafa; transform: scale(1.08); }
   .popRow { display: flex; gap: 6px; margin-top: 8px; }
   .popRow .dctl { flex: 1; justify-content: center; }
-  #filterPop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  #filterPop.hidden { display: none; }
-  .fopt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px; border-radius: 12px;
-          background: var(--panel2); font-size: 12px; min-width: 84px; }
+  /* Effects: backgrounds + face filters */
+  #filterPop { width: min(380px, calc(100vw - 16px)); max-height: min(70vh, 560px); overflow-y: auto; }
+  .fsec { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px;
+          margin: 4px 4px 6px; }
+  .fsec + .fgrid + .fsec { margin-top: 12px; }
+  .fgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .fopt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px;
+          background: var(--panel2); font-size: 11.5px; min-width: 0; text-align: center; }
   .fopt b { font-size: 24px; font-weight: normal; line-height: 1.2; }
+  .fopt .thumb { width: 100%; aspect-ratio: 16 / 9; border-radius: 7px; background: #2a2145 center / cover no-repeat;
+                 display: grid; place-items: center; font-size: 18px; }
   .fopt.sel { background: var(--accent); color: #fff; }
+  .fnote { font-size: 12px; color: var(--muted); margin: 10px 4px 2px; }
+
+  /* Live captions */
+  #captions { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 6;
+              width: min(760px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  #captions.hidden { display: none; }
+  .cap { background: rgba(20, 14, 36, .84); color: #fff; border-radius: 12px; padding: 8px 12px; font-size: 17px;
+         line-height: 1.4; backdrop-filter: blur(6px); overflow-wrap: anywhere; }
+  .cap b { color: #cdbdff; font-weight: 600; font-size: 13px; margin-right: 6px; }
+  .cap .wait, .cap .interim { opacity: .65; }
+  #ccPop { width: min(320px, calc(100vw - 16px)); }
+  #ccPop label { margin: 10px 2px 4px; font-size: 12px; }
+  #ccPop select { padding: 8px 10px; }
+  #ccToggle { width: 100%; justify-content: center; height: 38px; font-size: 14px; }
+  #ccPill { background: #2f9e44; color: #fff; border-color: #2f9e44; }
+  #pttPill { background: #2f9e44; color: #fff; border-color: #2f9e44; font-weight: 600; }
+
+  /* Info sheets (keyboard shortcuts, how to install on iPhone) */
+  #infoSheet { position: fixed; inset: 0; z-index: 61; display: flex; align-items: center; justify-content: center;
+               padding: 16px; background: rgba(20, 14, 36, .55); }
+  #infoSheet.hidden { display: none; }
+  #infoBody { max-height: 60vh; overflow-y: auto; margin-bottom: 14px; font-size: 14px; }
+  .krow { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--panel2); }
+  .krow kbd { font: 600 12px/1 system-ui, sans-serif; background: var(--panel2); border: 1px solid var(--line);
+              border-radius: 6px; padding: 5px 7px; white-space: nowrap; }
+  #infoBody p { margin: 0 0 10px; }
+  #keysBtn { display: none; }
+  @media (hover: hover) and (pointer: fine) { #keysBtn { display: inline-flex; } }
+  .install { margin-top: -4px; padding: 9px 16px; border-radius: 999px; background: var(--panel); border: 1px solid var(--accent2);
+             color: var(--accent); font-weight: 600; font-size: 14px; }
 
   /* People panel */
   #people { width: 320px; flex: none; display: flex; flex-direction: column; background: var(--panel);
@@ -304,7 +353,9 @@
     .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
     #chat, #people { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
     #topbar .title { display: none; }
-    #leaveSheet { align-items: flex-end; }       /* a sheet that slides up from the bottom on phones */
+    #leaveSheet, #infoSheet { align-items: flex-end; }   /* sheets slide up from the bottom on phones */
+    .cap { font-size: 15px; padding: 7px 10px; }
+    #captions { bottom: 8px; }
   }
   @media (max-width: 370px) {
     .ctl, .ctl.icon, .ctl:not(.leave) { width: 36px; min-width: 36px; height: 36px; }
@@ -329,6 +380,7 @@
     <input type="text" id="nameInput" maxlength="24" placeholder="e.g. Anmol" autocomplete="off">
     <button class="primary" id="joinBtn" disabled>Join call</button>
   </div>
+  <button class="install hidden" id="installBtn">📲 Install as an app</button>
   <div class="copyright">© 2026 Anmol Pandey<span class="more hidden"> &amp; Ananya Tripathi</span>. All rights reserved.<button class="know">Know more</button></div>
 </div>
 
@@ -339,13 +391,19 @@
     <span class="pill" id="count">1 in call</span>
     <span class="pill hidden" id="hostPill">Host</span>
     <span class="pill hidden" id="recPill"></span>
+    <span class="pill hidden" id="pttPill">🎙️ Talking</span>
+    <span class="pill hidden" id="ccPill" title="Your speech is being turned into captions for people who switched captions on">CC</span>
     <span id="status"></span>
+    <button class="pill" id="keysBtn" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
     <button class="pill" id="copyTop" title="Copy invite link">
       <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Invite
     </button>
   </div>
   <div id="main">
-    <div id="grid"></div>
+    <div id="stage">
+      <div id="grid"></div>
+      <div id="captions" class="hidden" aria-live="polite"></div>
+    </div>
     <aside id="chat" class="hidden">
       <div class="chatHead"><span>Chat</span><button id="chatClose" title="Close chat">✕</button></div>
       <div id="msgs"><div class="empty" id="noMsgs">No messages yet.</div></div>
@@ -397,6 +455,10 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
         <span class="lbl">Share screen</span>
       </button>
+      <button class="ctl" id="ccBtn" title="Live captions (C)">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.3a2.3 2.3 0 1 0 0 3.4M17 10.3a2.3 2.3 0 1 0 0 3.4"/></svg>
+        <span class="lbl">Captions</span>
+      </button>
       <button class="ctl" id="reactBtn" title="Send a reaction">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
         <span class="lbl">React</span>
@@ -409,9 +471,9 @@
         <svg viewBox="0 0 24 24"><path d="M4 20l4.5-1L19 8.5 15.5 5 5 15.5z"/><path d="M13.5 7l3.5 3.5"/></svg>
         <span class="lbl">Draw</span>
       </button>
-      <button class="ctl" id="filterBtn" title="Face filters">
+      <button class="ctl" id="filterBtn" title="Background blur, virtual backgrounds and face filters (E)">
         <svg viewBox="0 0 24 24"><path d="M11 3l1.8 4.7 4.7 1.8-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8z"/><path d="M18.5 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
-        <span class="lbl">Filters</span>
+        <span class="lbl">Effects</span>
       </button>
       <button class="ctl" id="wbBtn" title="Shared whiteboard">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20l4-4 4 4"/><path d="M7 12l3-3 2 2 4-4"/></svg>
@@ -461,7 +523,28 @@
     <button class="dctl" id="gestBtn" title="Thumbs up 👍 or peace sign ✌️ to the camera sends that reaction; an open palm raises your hand">🖐️ <span id="gestLbl">Camera gestures: off</span></button>
   </div>
 </div>
-<div id="filterPop" class="pop hidden"></div>
+<div id="filterPop" class="pop hidden">
+  <div class="fsec">Background</div>
+  <div class="fgrid" id="bgGrid"></div>
+  <div class="fsec">Face filter</div>
+  <div class="fgrid" id="faceGrid"></div>
+  <input type="file" id="bgFile" accept="image/*" hidden>
+</div>
+<div id="ccPop" class="pop hidden">
+  <button class="dctl" id="ccToggle">Captions: off</button>
+  <label for="ccSpeak">I speak</label>
+  <select id="ccSpeak"></select>
+  <label for="ccShow">Show captions in</label>
+  <select id="ccShow"></select>
+  <div class="fnote" id="ccNote"></div>
+</div>
+<div id="infoSheet" class="hidden">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <h2 id="infoTitle"></h2>
+    <div id="infoBody"></div>
+    <button class="stay" id="infoOk">Got it</button>
+  </div>
+</div>
 <div id="viewer" class="hidden">
   <img id="viewerImg" alt="">
   <div class="vbar"><a id="viewerDl" href="#" download>Download</a><button id="viewerClose">Close</button></div>
@@ -713,7 +796,8 @@ function blackTrack() {            // stand-in picture for people with no camera
 // My status, as sent to one person. Only the host and co-hosts are told that I'm recording.
 function myState(to) {
   const showRec = rec.on && !!to && (to === hostId || cohosts.has(to));
-  return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: showRec, hand: myHand };
+  return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: showRec, hand: myHand,
+           cc: cap.wanted, lang: cap.lang };   // cc: I'd like captions; lang: the language I speak
 }
 function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
 function sendState() {
@@ -738,9 +822,12 @@ function onPeerMsg(id, msg) {
   if (!msg || typeof msg !== "object") return;
   if (msg.t === "state") {
     const before = pstate.get(id);
-    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing, rec: !!msg.rec, hand: !!msg.hand };
+    const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing, rec: !!msg.rec, hand: !!msg.hand,
+                  cc: !!msg.cc, lang: typeof msg.lang === "string" && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(msg.lang) ? msg.lang : "" };
     pstate.set(id, now);
     renderPeer(id);
+    if (!now.mic && before && before.mic) clearCapInterim(id);
+    if (!!(before && before.cc) !== now.cc) capSync();   // someone switched captions on or off
     if (now.hand && !hands.has(id)) { hands.set(id, Date.now()); toast(nameOf(id) + " raised their hand ✋"); }
     if (!now.hand && hands.has(id)) hands.delete(id);
     renderHands();
@@ -753,6 +840,8 @@ function onPeerMsg(id, msg) {
     if (!now.sharing && before && before.sharing && pinnedId === id && autoPinned) { pinnedId = null; autoPinned = false; layout(); }
   } else if (msg.t === "chat") {
     addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
+  } else if (msg.t === "cc") {
+    receiveCap(id, msg);
   } else if (msg.t === "wb") {
     wbMessage(id, msg);
   } else if (msg.t === "react") {
@@ -813,6 +902,8 @@ function dropPeer(id, c, note) {
   allowed.delete(id);
   hands.delete(id);
   quality.delete(id); qprev.delete(id);
+  dropCapLine(id);
+  capSync();
   const tile = $("tile-" + id);
   if (tile) { tile.remove(); if (!left) toast(note || nameOf(id) + " left"); }
   refreshRecipients();
@@ -1273,6 +1364,8 @@ async function initPreview() {
 }
 
 function requestJoin() {
+  if (typeof Peer === "undefined") { toast("Can't reach the call service — check your internet and reload"); return; }
+  startLevels();                           // inside the Join click, so the browser allows sound analysis
   myName = clean($("nameInput").value);
   try { localStorage.setItem("gvc-name", myName); } catch (e) {}
   $("joinBtn").disabled = true;
@@ -1323,11 +1416,15 @@ function leaveCall(message) {
   stopRecording();                         // leaving saves the recording
   stopDrawing(true);
   face.filter = null;
+  bg.mode = null;
   pipeUpdate(true);
   stopGestures();
   closePops();
   hideLeaveSheet();
+  hideInfo();
   closeUnmuteCard();
+  stopCaptions();
+  pttUp();
   dropBackGuard();                         // back works normally again once I've left
   $("people").classList.add("hidden");
   $("viewer").classList.add("hidden");
@@ -1354,11 +1451,12 @@ function setMic(on) {
   if (!t) return;
   t.enabled = on;
   $("mic").classList.toggle("off", !on);
-  $("mic").title = on ? "Mute your microphone" : "Unmute your microphone";
+  $("mic").title = on ? "Mute your microphone (M)" : "Unmute your microphone (M) — or hold Space to talk";
   if (on) closeUnmuteCard();
   sendState();
+  capSync();                               // captions only listen while my mic is on
+  if (!on && !pttActive()) pttTip();
 }
-$("mic").onclick = () => setMic(!micOn());
 $("cam").onclick = () => {
   const t = localStream.getVideoTracks()[0];
   if (!t || placeholderCam) return;
@@ -1600,10 +1698,16 @@ function drawFrame() {
   g.fillStyle = BOARD;
   g.fillRect(0, 0, W, H);
   if (live) {
+    // Background effect: only on my camera, and only once the first mask of me has arrived.
+    const pic = bgPicture(), useBg = !sharing && !!bg.mode && bg.have && (bgIsBlur() || !!pic);
+    if (useBg && pic) drawCover(g, pic, W, H);          // a picture stays the right way round
     // Selfie camera: send it mirrored while drawing, so writing reads the right way round for everyone.
     g.save();
     if (draw.on && !sharing && !rearCam()) { g.translate(W, 0); g.scale(-1, 1); }
-    g.drawImage(v, 0, 0, W, H);
+    if (useBg) {
+      if (bgIsBlur()) drawBlurred(g, v, W, H, bg.mode === "blur2");
+      drawPerson(g, v, W, H);                           // me, cut out from the background
+    } else g.drawImage(v, 0, 0, W, H);
     if (!sharing && face.filter) drawFilter(g, W, H);   // the filter moves with the picture
     g.restore();
   }
@@ -1657,10 +1761,11 @@ function tick() {
   draw.last = now;
   if (draw.hand) trackHand(now);
   if (face.filter) trackFace(now);
+  if (bg.mode) segmentStep(now);
   drawFrame();
 }
 
-// The effects canvas runs while I'm drawing or using a face filter, and is what everyone receives.
+// The effects canvas runs while I'm drawing or using a background or face filter, and is what everyone receives.
 function pipeStart() {
   if (draw.pipe) return;
   setupDrawing();
@@ -1686,7 +1791,7 @@ function pipeStop(quiet) {
   updateLocalTile();
 }
 function pipeUpdate(quiet) {
-  if (draw.on || face.filter) pipeStart(); else pipeStop(quiet);
+  if (draw.on || face.filter || bg.mode) pipeStart(); else pipeStop(quiet);
 }
 
 function startDrawing() {
@@ -1711,7 +1816,7 @@ function stopDrawing(quiet) {
   clearInk();
   $("draw").classList.remove("on");
   $("drawBar").classList.add("hidden");
-  pipeUpdate(quiet);                                  // keeps running if a face filter is on
+  pipeUpdate(quiet);                                  // keeps running if a background or face filter is on
   if (quiet) return;
   if (pinnedId === "me" && !autoPinned && draw.prevPin) { pinnedId = draw.prevPin.id; autoPinned = draw.prevPin.auto; }
   draw.prevPin = null;
@@ -2318,6 +2423,41 @@ function recTile(g, tile, r) {
   }
   g.globalAlpha = 1;
   g.restore();
+  if (tile.classList.contains("speaking")) {            // the active-speaker glow, as on screen
+    g.save();
+    g.strokeStyle = "#3ddc97"; g.lineWidth = 4;
+    g.beginPath();
+    if (g.roundRect) g.roundRect(x, y, w, h, 14); else g.rect(x, y, w, h);
+    g.stroke();
+    g.restore();
+  }
+}
+// Captions on screen go into the recording too: one line per speaker, at the bottom.
+function recCaptions(g) {
+  if (!cap.wanted) return;
+  const boxes = [...$("captions").children].filter(el => el.style.display !== "none" && !el.classList.contains("hidden"));
+  if (!boxes.length) return;
+  const size = 20, h = 34, gap = 8, maxW = REC_W * 0.72;
+  let y = REC_H - 26 - boxes.length * (h + gap);
+  g.save();
+  g.font = `${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  g.textBaseline = "middle"; g.textAlign = "left";
+  for (const el of boxes) {
+    const who = (el.querySelector("b") || {}).textContent || "";
+    const said = [...el.querySelectorAll("span")].map(s => s.textContent).join("").trim(), lead = who ? who + ":  " : "";
+    let text = said;                                     // too long for one line: keep the newest words
+    while (text.length > 4 && g.measureText(lead + "…" + text).width > maxW - 28) text = text.slice(Math.ceil(text.length * 0.08));
+    const full = lead + (text !== said ? "…" : "") + text;
+    const w = Math.min(maxW, g.measureText(full).width + 28), x = (REC_W - w) / 2;
+    g.fillStyle = "rgba(20,14,36,.84)";
+    g.beginPath();
+    if (g.roundRect) g.roundRect(x, y, w, h, 10); else g.rect(x, y, w, h);
+    g.fill();
+    g.fillStyle = "#fff";
+    g.fillText(full, x + 14, y + h / 2 + 1);
+    y += h + gap;
+  }
+  g.restore();
 }
 function recFrame() {
   const g = rec.g;
@@ -2326,6 +2466,7 @@ function recFrame() {
   const tiles = [...$("grid").children];
   const rects = recLayout(tiles.length, tiles.findIndex(t => t.classList.contains("pinned")), REC_W, REC_H);
   tiles.forEach((t, i) => recTile(g, t, rects[i]));
+  recCaptions(g);
   g.font = "11px system-ui, sans-serif"; g.fillStyle = "rgba(255,255,255,.45)";
   g.textAlign = "right"; g.textBaseline = "alphabetic";
   g.fillText("Group Video Call · © 2026 Anmol Pandey", REC_W - 18, REC_H - 4);
@@ -2440,7 +2581,7 @@ addEventListener("beforeunload", e => {
 /* ---------------- the button bar: whatever doesn't fit on one row goes in the ⋯ menu ---------------- */
 const CTL_ORDER = [...$("controls").children];                    // the bar's normal order
 // Moved into the ⋯ menu first → last when the bar is too narrow (most-used buttons stay out).
-const OVERFLOW = ["recBtn", "filterBtn", "wbBtn", "draw", "share", "peopleBtn", "raiseBtn", "reactBtn"];
+const OVERFLOW = ["recBtn", "filterBtn", "wbBtn", "draw", "share", "ccBtn", "peopleBtn", "raiseBtn", "reactBtn"];
 function barFits() {
   const vis = [...$("controls").children].filter(e => e.offsetParent);
   return vis.every(e => e.offsetTop === vis[0].offsetTop);
@@ -2484,7 +2625,7 @@ for (const el of CTL_ORDER) moreWatch.observe(el, { attributes: true, attributeF
 addEventListener("resize", arrangeControls);
 
 // Small pop-up panels (reactions, filters) open above their button, or above ⋯ if the button is in the menu.
-const POPS = ["reactPop", "filterPop"];
+const POPS = ["reactPop", "filterPop", "ccPop"];
 function openPop(id, btn) {
   const inMenu = !!btn.closest("#moreMenu");
   const pop = $(id), wasOpen = !pop.classList.contains("hidden");
@@ -2499,11 +2640,11 @@ function openPop(id, btn) {
 function closePops() { for (const id of POPS) $(id).classList.add("hidden"); }
 document.addEventListener("pointerdown", e => {
   if (!$("moreMenu").classList.contains("hidden") && !e.target.closest("#moreMenu, #moreBtn")) closeMore();
-  if (!e.target.closest(".pop, #reactBtn, #filterBtn")) closePops();
+  if (!e.target.closest(".pop, #reactBtn, #filterBtn, #ccBtn")) closePops();
 });
 addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
-  closePops(); closeMore(); hideLeaveSheet();
+  closePops(); closeMore(); hideLeaveSheet(); hideInfo();
   $("viewer").classList.add("hidden");
 });
 
@@ -2628,7 +2769,8 @@ function gestureStep() {
 /* ---------------- face filters: drawn on my face in the video everyone sees ---------------- */
 const FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const FILTERS = [["", "🚫", "None"], ["glasses", "😎", "Sunglasses"], ["party", "🥳", "Party hat"],
-                 ["crown", "👑", "Crown"], ["stache", "🥸", "Moustache"], ["cat", "🐱", "Cat ears"]];
+                 ["crown", "👑", "Crown"], ["stache", "🥸", "Moustache"], ["cat", "🐱", "Cat ears"],
+                 ["clown", "🤡", "Clown nose"], ["hearts", "😍", "Heart eyes"]];
 const face = { filter: null, loading: false, tracker: null, pose: null, seen: 0, ts: 0, n: 0 };
 async function loadFaceTracker() {
   if (face.tracker) return face.tracker;
@@ -2667,8 +2809,9 @@ async function setFilter(name) {
   if (name && !camOn()) toast("Turn your camera on to see the filter");
 }
 function showFilterUI() {
-  for (const b of $("filterPop").children) b.classList.toggle("sel", (b.dataset.f || null) === face.filter);
-  $("filterBtn").classList.toggle("on", !!face.filter);
+  for (const b of $("faceGrid").children) b.classList.toggle("sel", (b.dataset.f || null) === face.filter);
+  for (const b of $("bgGrid").children) b.classList.toggle("sel", (b.dataset.bg || null) === bg.mode);
+  $("filterBtn").classList.toggle("on", !!face.filter || !!bg.mode);
 }
 FILTERS.forEach(([id, emoji, label]) => {
   const b = document.createElement("button");
@@ -2678,10 +2821,254 @@ FILTERS.forEach(([id, emoji, label]) => {
   const t = document.createElement("span"); t.textContent = label;
   b.append(e, t);
   b.onclick = () => setFilter(id);
-  $("filterPop").appendChild(b);
+  $("faceGrid").appendChild(b);
 });
-showFilterUI();
 $("filterBtn").onclick = () => openPop("filterPop", $("filterBtn"));
+
+/* ---------------- background blur and virtual backgrounds ---------------- */
+// MediaPipe's selfie segmenter finds me in each camera frame (on a small 256-wide copy, so it's quick).
+// Its mask cuts me out, and I'm drawn over a blurred copy of the room or a picture. Like the face
+// filters, it all happens on the effects canvas, so everyone sees the same thing. Nothing is uploaded.
+const SEG_MODELS = [
+  "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite",
+  "https://huggingface.co/litert-community/MediaPipe-ImageSegmenter-Selfie-Square/resolve/main/selfie_segmenter.tflite",
+];
+const BGS = [["", "🚫", "None"], ["blur1", "💧", "Slight blur"], ["blur2", "🌫️", "Blur"], ["lilac", "", "Lilac"],
+             ["sunset", "", "Sunset"], ["night", "", "Night sky"], ["custom", "🖼️", "Your picture"]];
+const bg = {
+  mode: null, loading: false, seg: null, ts: 0, n: 0, cost: 0, have: false, prev: null,
+  small: null, sg: null, mask: null, mg: null, mdata: null, soft: null, sfg: null,   // the small frame and my mask
+  fg: null, fgg: null, blur: null, bgg: null, tiny: null, tg: null,
+  pics: {}, custom: null,
+};
+const canFilterBlur = (() => { try { return "filter" in document.createElement("canvas").getContext("2d"); } catch (e) { return false; } })();
+const bgIsBlur = () => bg.mode === "blur1" || bg.mode === "blur2";
+function bgPicture() {
+  if (!bg.mode || bgIsBlur()) return null;
+  if (bg.mode === "custom") return bg.custom;
+  return bg.pics[bg.mode] || (bg.pics[bg.mode] = makeBackground(bg.mode, 1280, 720));
+}
+function canvas2d(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return [c, c.getContext("2d")]; }
+
+async function loadSegmenter() {
+  if (bg.seg) return bg.seg;
+  const { vision, files } = await loadVision();
+  let err = null;
+  for (const url of SEG_MODELS) for (const delegate of ["CPU", "GPU"]) {    // a small input runs fastest on the CPU
+    try {
+      bg.seg = await vision.ImageSegmenter.createFromOptions(files, {
+        baseOptions: { modelAssetPath: url, delegate }, runningMode: "VIDEO",
+        outputCategoryMask: false, outputConfidenceMasks: true,
+      });
+      return bg.seg;
+    } catch (e) { err = e; console.warn("Background model failed:", url, delegate, e); }
+  }
+  throw err;
+}
+
+// Find me in the current camera frame and update the mask (soft edges, smoothed over time).
+function segmentStep(now) {
+  const v = draw.camVideo;
+  if (!bg.seg || screenStream || !camOn() || v.readyState < 2 || !v.videoWidth) return;
+  if (bg.cost > 22 && ++bg.n % 2) return;                     // a slow phone: every other frame is enough
+  const t0 = performance.now();
+  if (!bg.small) { [bg.small, bg.sg] = canvas2d(256, 144); [bg.mask, bg.mg] = canvas2d(256, 144); }
+  const sw = 256, sh = Math.max(16, Math.round(256 * v.videoHeight / v.videoWidth));
+  if (bg.small.width !== sw || bg.small.height !== sh) { bg.small.width = sw; bg.small.height = sh; }
+  bg.sg.drawImage(v, 0, 0, sw, sh);
+  const ts = Math.max(now, bg.ts + 1);
+  bg.ts = ts;
+  let res = null;
+  try { res = bg.seg.segmentForVideo(bg.small, ts); } catch (e) { console.warn(e); return; }
+  const masks = (res && res.confidenceMasks) || [];
+  const m = masks[masks.length > 1 ? 1 : 0];                  // category 0 = background, 1 = person
+  if (m) {
+    const a = m.getAsFloat32Array(), mw = m.width || sw, mh = m.height || sh;
+    if (bg.mask.width !== mw || bg.mask.height !== mh || !bg.mdata) {
+      bg.mask.width = mw; bg.mask.height = mh;
+      bg.mdata = bg.mg.createImageData(mw, mh);
+      bg.prev = null;
+    }
+    if (!bg.prev || bg.prev.length !== a.length) bg.prev = Float32Array.from(a);
+    const p = bg.prev, d = bg.mdata.data;
+    for (let i = 0; i < a.length; i++) {
+      const s = p[i] = p[i] * 0.3 + a[i] * 0.7;               // smooth flicker between frames
+      const k = (s - 0.3) * 2.5;                              // firm up the edge a little
+      d[i * 4 + 3] = k <= 0 ? 0 : k >= 1 ? 255 : k * 255;
+    }
+    bg.mg.putImageData(bg.mdata, 0, 0);
+    if (canFilterBlur) {                                      // feather the edge a touch (cheap at this size)
+      if (!bg.soft) [bg.soft, bg.sfg] = canvas2d(mw, mh);
+      if (bg.soft.width !== mw || bg.soft.height !== mh) { bg.soft.width = mw; bg.soft.height = mh; }
+      bg.sfg.clearRect(0, 0, mw, mh);
+      bg.sfg.filter = "blur(1.2px)";
+      bg.sfg.drawImage(bg.mask, 0, 0);
+      bg.sfg.filter = "none";
+    }
+    bg.have = true;
+  }
+  if (res && res.close) res.close(); else masks.forEach(x => x && x.close && x.close());
+  bg.cost = bg.cost * 0.8 + (performance.now() - t0) * 0.2;
+}
+// Me without the background: the camera picture, kept only where the mask says "person".
+function drawPerson(g, v, W, H) {
+  if (!bg.fg) [bg.fg, bg.fgg] = canvas2d(W, H);
+  if (bg.fg.width !== W || bg.fg.height !== H) { bg.fg.width = W; bg.fg.height = H; }
+  const f = bg.fgg;
+  f.globalCompositeOperation = "copy";
+  f.drawImage(v, 0, 0, W, H);
+  f.globalCompositeOperation = "destination-in";
+  f.imageSmoothingEnabled = true; f.imageSmoothingQuality = "high";
+  f.drawImage(canFilterBlur && bg.soft ? bg.soft : bg.mask, 0, 0, W, H);
+  f.globalCompositeOperation = "source-over";
+  g.drawImage(bg.fg, 0, 0);
+}
+// A blurred copy of the camera picture. Blurring a quarter-size copy is much cheaper and looks the same.
+function drawBlurred(g, v, W, H, strong) {
+  const bw = Math.max(16, Math.round(W / 4)), bh = Math.max(9, Math.round(H / 4));
+  if (!bg.blur) [bg.blur, bg.bgg] = canvas2d(bw, bh);
+  if (bg.blur.width !== bw || bg.blur.height !== bh) { bg.blur.width = bw; bg.blur.height = bh; }
+  const b = bg.bgg, pad = strong ? 12 : 6;
+  if (canFilterBlur) {
+    b.filter = `blur(${strong ? 7 : 3.5}px)`;
+    b.drawImage(v, -pad, -pad, bw + pad * 2, bh + pad * 2);   // a little extra so the edges don't go dark
+    b.filter = "none";
+  } else {                                                    // Safari: shrink a lot, then stretch back up
+    const k = strong ? 8 : 4, tw = Math.max(4, Math.round(bw / k)), th = Math.max(3, Math.round(bh / k));
+    if (!bg.tiny) [bg.tiny, bg.tg] = canvas2d(tw, th);
+    if (bg.tiny.width !== tw || bg.tiny.height !== th) { bg.tiny.width = tw; bg.tiny.height = th; }
+    bg.tg.imageSmoothingEnabled = true;
+    bg.tg.drawImage(v, 0, 0, tw, th);
+    b.imageSmoothingEnabled = true; b.imageSmoothingQuality = "high";
+    b.drawImage(bg.tiny, 0, 0, bw, bh);
+  }
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+  g.drawImage(bg.blur, 0, 0, W, H);
+}
+// Fill the frame with a picture, cropping it rather than squashing it.
+function drawCover(g, img, W, H) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  if (!iw || !ih) return;
+  const s = Math.max(W / iw, H / ih);
+  g.drawImage(img, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s);
+}
+
+// The built-in backgrounds are painted in code, so there are no picture files to host.
+function makeBackground(kind, W, H) {
+  const [c, g] = canvas2d(W, H);
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  if (kind === "lilac") {
+    const gr = g.createLinearGradient(0, 0, W, H);
+    gr.addColorStop(0, "#f3ecff"); gr.addColorStop(0.55, "#d9c8fb"); gr.addColorStop(1, "#a98be8");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 26; i++) {                            // soft out-of-focus lights
+      const x = rnd() * W, y = rnd() * H, r = (0.03 + rnd() * 0.09) * W;
+      const rg = g.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, `rgba(255,255,255,${0.18 + rnd() * 0.25})`); rg.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+  } else if (kind === "sunset") {
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, "#2b1d5c"); sky.addColorStop(0.45, "#b8407a"); sky.addColorStop(0.72, "#f7965f"); sky.addColorStop(1, "#ffd08a");
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    const sx = W * 0.62, sy = H * 0.7, sr = H * 0.17;
+    const glow = g.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 3.2);
+    glow.addColorStop(0, "rgba(255,226,150,.55)"); glow.addColorStop(1, "rgba(255,226,150,0)");
+    g.fillStyle = glow; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#ffe29a"; g.beginPath(); g.arc(sx, sy, sr, 0, Math.PI * 2); g.fill();
+    [["#6b2f63", 0.74, 0.05, 2.1], ["#3f1f4e", 0.82, 0.06, 1.4], ["#24143a", 0.9, 0.04, 2.8]].forEach(([col, base, amp, f]) => {
+      g.fillStyle = col; g.beginPath(); g.moveTo(0, H);
+      for (let x = 0; x <= W; x += 16) g.lineTo(x, H * (base + amp * Math.sin(x / W * Math.PI * f + base * 9)));
+      g.lineTo(W, H); g.closePath(); g.fill();
+    });
+  } else if (kind === "night") {
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, "#070b1f"); sky.addColorStop(0.7, "#1b2558"); sky.addColorStop(1, "#33306e");
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle = `rgba(255,255,255,${0.25 + rnd() * 0.75})`;
+      g.beginPath(); g.arc(rnd() * W, rnd() * H * 0.8, 0.5 + rnd() * 1.6, 0, Math.PI * 2); g.fill();
+    }
+    const mx = W * 0.8, my = H * 0.22, mr = H * 0.08;
+    const mg = g.createRadialGradient(mx, my, mr, mx, my, mr * 4);
+    mg.addColorStop(0, "rgba(220,225,255,.35)"); mg.addColorStop(1, "rgba(220,225,255,0)");
+    g.fillStyle = mg; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#f4f1e0"; g.beginPath(); g.arc(mx, my, mr, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#151a3d"; g.beginPath(); g.moveTo(0, H);
+    for (let x = 0; x <= W; x += 16) g.lineTo(x, H * (0.86 + 0.04 * Math.sin(x / W * 7)));
+    g.lineTo(W, H); g.closePath(); g.fill();
+  }
+  return c;
+}
+
+async function setBackground(mode) {
+  closePops();
+  mode = mode || null;
+  // "Your picture": pick one first (or pick a new one by tapping it again).
+  if (mode === "custom" && (!bg.custom || bg.mode === "custom")) { $("bgFile").click(); return; }
+  if (mode === bg.mode) return;
+  if (mode && placeholderCam) { toast("Backgrounds need a camera"); return; }
+  if (mode && !bg.seg) {
+    if (bg.loading) return;
+    bg.loading = true;
+    toast("Loading background effects…");
+    try { await loadSegmenter(); }
+    catch (e) { console.warn(e); toast("Couldn't load background effects — check your internet and try again"); }
+    bg.loading = false;
+    if (!bg.seg || left || !inCall) { showFilterUI(); return; }
+  }
+  bg.mode = mode;
+  bg.have = false; bg.prev = null;                    // wait for a fresh mask before hiding the room
+  pipeUpdate();
+  showFilterUI();
+  if (mode && !camOn()) toast("Turn your camera on to see your background");
+}
+function bgThumb(btn, img) {
+  const t = btn.querySelector(".thumb");
+  try { const [c, g] = canvas2d(160, 90); drawCover(g, img, 160, 90); t.style.backgroundImage = `url(${c.toDataURL("image/jpeg", 0.8)})`; t.textContent = ""; }
+  catch (e) {}
+}
+BGS.forEach(([id, emoji, label]) => {
+  const b = document.createElement("button");
+  b.className = "fopt";
+  b.dataset.bg = id;
+  b.title = id === "custom" ? "Use a picture from your device (tap again to change it)" : label;
+  const th = document.createElement("span"); th.className = "thumb"; th.textContent = emoji;
+  const t = document.createElement("span"); t.textContent = label;
+  b.append(th, t);
+  b.onclick = () => setBackground(id);
+  $("bgGrid").appendChild(b);
+  if (id && !emoji) bgThumb(b, makeBackground(id, 320, 180));
+});
+// My own picture: shrunk to at most 1920 wide, and remembered on this device for next time.
+function useCustomPicture(img, save) {
+  const s = Math.min(1, 1920 / (img.naturalWidth || img.width));
+  const [c, g] = canvas2d(Math.round((img.naturalWidth || img.width) * s), Math.round((img.naturalHeight || img.height) * s));
+  g.drawImage(img, 0, 0, c.width, c.height);
+  bg.custom = c;
+  bgThumb($("bgGrid").querySelector('[data-bg="custom"]'), c);
+  if (save) try { localStorage.setItem("gvc-bgimg", c.toDataURL("image/jpeg", 0.85)); } catch (e) {}   // too big to keep? fine
+}
+$("bgFile").onchange = () => {
+  const f = $("bgFile").files[0];
+  $("bgFile").value = "";
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { toast("That isn't a picture"); return; }
+  const url = URL.createObjectURL(f), img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    useCustomPicture(img, true);
+    if (bg.mode !== "custom") setBackground("custom"); else showFilterUI();
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("Couldn't open that picture"); };
+  img.src = url;
+};
+try {
+  const saved = localStorage.getItem("gvc-bgimg");
+  if (saved && saved.startsWith("data:image/")) { const im = new Image(); im.onload = () => useCustomPicture(im, false); im.src = saved; }
+} catch (e) {}
+showFilterUI();
 
 // A few key points of the face (0–1 of the camera picture), smoothed so the filter doesn't jitter.
 function trackFace(now) {
@@ -2695,7 +3082,7 @@ function trackFace(now) {
   if (!lm || lm.length < 455) { if (now - face.seen > 500) face.pose = null; return; }
   face.seen = now;
   const P = i => [lm[i].x, lm[i].y], mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const pose = { eyeL: mid(P(33), P(133)), eyeR: mid(P(362), P(263)), top: P(10), nose: P(2), lip: P(13), cheekL: P(234), cheekR: P(454) };
+  const pose = { eyeL: mid(P(33), P(133)), eyeR: mid(P(362), P(263)), top: P(10), nose: P(2), tip: P(1), lip: P(13), cheekL: P(234), cheekR: P(454) };
   if (face.pose) for (const k in pose) { const o = face.pose[k]; pose[k] = [o[0] + 0.5 * (pose[k][0] - o[0]), o[1] + 0.5 * (pose[k][1] - o[1])]; }
   face.pose = pose;
 }
@@ -2792,9 +3179,364 @@ function drawFilter(g, W, H) {
       g.fillStyle = "#f4a3b4";
       g.beginPath(); g.moveTo(bx - ew * 0.28, by - eh * 0.08); g.lineTo(bx + ew * 0.28, by - eh * 0.08); g.lineTo(bx + s * ew * 0.12, by - eh * 0.72); g.closePath(); g.fill();
     }
+  } else if (face.filter === "clown") {
+    const tp = X(p.tip || p.nose), r = fw * 0.085;
+    g.translate(tp[0], tp[1]);
+    const ball = g.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+    ball.addColorStop(0, "#ff8a8a"); ball.addColorStop(0.5, "#e5262f"); ball.addColorStop(1, "#a3121b");
+    g.fillStyle = ball;
+    g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(255,255,255,.75)";                                                                      // shine
+    g.beginPath(); g.ellipse(-r * 0.35, -r * 0.4, r * 0.22, r * 0.13, -0.6, 0, Math.PI * 2); g.fill();
+  } else if (face.filter === "hearts") {
+    g.translate((eL[0] + eR[0]) / 2, (eL[1] + eR[1]) / 2);
+    g.rotate(ang);
+    const s = eyeD * 0.78, beat = 1 + 0.06 * Math.sin(performance.now() / 180);                              // they pulse
+    for (const side of [-1, 1]) {
+      const x = side * eyeD / 2, y = 0, h = s * beat;
+      g.fillStyle = "#ff2e63";
+      g.beginPath();
+      g.moveTo(x, y + h * 0.42);
+      g.bezierCurveTo(x - h * 0.75, y - h * 0.05, x - h * 0.42, y - h * 0.62, x, y - h * 0.25);
+      g.bezierCurveTo(x + h * 0.42, y - h * 0.62, x + h * 0.75, y - h * 0.05, x, y + h * 0.42);
+      g.fill();
+      g.fillStyle = "rgba(255,255,255,.6)";
+      g.beginPath(); g.ellipse(x - h * 0.22, y - h * 0.22, h * 0.09, h * 0.06, -0.7, 0, Math.PI * 2); g.fill();
+    }
   }
   g.restore();
 }
+
+/* ---------------- live captions, with translation ---------------- */
+// Each person's own browser turns their own speech into text (the Web Speech API) and sends the text
+// to the people who switched captions on, over the same links the chat uses. A speaker's browser has to
+// support it (Chrome, Edge, Safari); anyone can read the captions. Translation happens on the reader's side,
+// into the language they picked: on the device itself in desktop Chrome when it can, otherwise through
+// MyMemory, a free online translation service with a daily limit.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SPEAK_LANGS = [["en-IN", "English (India)"], ["en-US", "English (US)"], ["en-GB", "English (UK)"], ["hi-IN", "Hindi"],
+  ["bn-IN", "Bengali"], ["ta-IN", "Tamil"], ["te-IN", "Telugu"], ["mr-IN", "Marathi"], ["gu-IN", "Gujarati"], ["kn-IN", "Kannada"],
+  ["ml-IN", "Malayalam"], ["pa-IN", "Punjabi"], ["ur-IN", "Urdu"], ["es-ES", "Spanish"], ["fr-FR", "French"], ["de-DE", "German"],
+  ["it-IT", "Italian"], ["pt-BR", "Portuguese"], ["ru-RU", "Russian"], ["ar-SA", "Arabic"], ["ja-JP", "Japanese"],
+  ["ko-KR", "Korean"], ["zh-CN", "Chinese"]];
+const SHOW_LANGS = [["", "As spoken (no translation)"], ["en", "English"], ["hi", "Hindi"], ["bn", "Bengali"], ["ta", "Tamil"],
+  ["te", "Telugu"], ["mr", "Marathi"], ["gu", "Gujarati"], ["kn", "Kannada"], ["ml", "Malayalam"], ["pa", "Punjabi"], ["ur", "Urdu"],
+  ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["it", "Italian"], ["pt", "Portuguese"], ["ru", "Russian"],
+  ["ar", "Arabic"], ["ja", "Japanese"], ["ko", "Korean"], ["zh", "Chinese"]];
+const baseLang = l => String(l || "").toLowerCase().split("-")[0];
+const langLabel = code => (SPEAK_LANGS.find(([c]) => c === code) || SHOW_LANGS.find(([c]) => c === code) || [0, code])[1];
+function guessLang() {
+  const nav = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || "en-US"]).map(String);
+  for (const l of nav) { const hit = SPEAK_LANGS.find(([c]) => c.toLowerCase() === l.toLowerCase()); if (hit) return hit[0]; }
+  for (const l of nav) { const hit = SPEAK_LANGS.find(([c]) => baseLang(c) === baseLang(l)); if (hit) return hit[0]; }
+  return "en-US";
+}
+const cap = {
+  wanted: false,                          // I want to see captions
+  sr: null, listening: false, blocked: false, restartT: null, errors: 0,   // turning my own speech into text
+  seg: 0, pending: null, pendT: null,     // my current sentence
+  lang: "", show: "",                     // the language I speak; the language I read captions in ("" = as spoken)
+  lines: new Map(),                       // who -> one caption box per speaker
+  trans: new Map(),                       // "en>hi" -> promise of an on-device translator (or null)
+  onlineOffUntil: 0,
+};
+try { cap.lang = localStorage.getItem("gvc-cc-lang") || ""; cap.show = localStorage.getItem("gvc-cc-show") || ""; } catch (e) {}
+if (!SPEAK_LANGS.some(([c]) => c === cap.lang)) cap.lang = guessLang();
+if (!SHOW_LANGS.some(([c]) => c === cap.show)) cap.show = "";
+for (const [code, name] of SPEAK_LANGS) $("ccSpeak").add(new Option(name, code));
+for (const [code, name] of SHOW_LANGS) $("ccShow").add(new Option(name, code));
+$("ccSpeak").value = cap.lang;
+$("ccShow").value = cap.show;
+
+function setCaptions(on) {
+  if (cap.wanted === on || !inCall || left) return;
+  cap.wanted = on;
+  cap.blocked = false;
+  if (on) prepareTranslators();           // this runs inside a click, so the on-device translator may download
+  else for (const who of [...cap.lines.keys()]) dropCapLine(who);
+  $("captions").classList.toggle("hidden", !on);
+  sendState();                            // others start (or stop) sending me their captions
+  capSync();
+  toast(on ? (SR ? "Captions on" : "Captions on — this browser can't caption your own voice, but you'll see everyone else's")
+           : "Captions off");
+}
+function stopCaptions() {                 // leaving the call
+  stopListening();
+  cap.wanted = false;
+  for (const who of [...cap.lines.keys()]) dropCapLine(who);
+  $("captions").classList.add("hidden");
+  showCapUI();
+}
+function showCapUI() {
+  $("ccBtn").classList.toggle("on", cap.wanted);
+  $("ccToggle").textContent = cap.wanted ? "Captions: on" : "Captions: off";
+  $("ccToggle").classList.toggle("on", cap.wanted);
+  $("ccPill").classList.toggle("hidden", !cap.listening);
+  const notes = [];
+  if (!SR) notes.push("This browser can't turn your speech into captions. You'll still see captions from people on Chrome, Edge or Safari.");
+  if (cap.show) notes.push("Translated " + ("Translator" in self ? "on this device when it can, otherwise " : "") +
+                           "by MyMemory, a free online service with a daily limit.");
+  $("ccNote").textContent = notes.join(" ");
+  $("ccNote").classList.toggle("hidden", !notes.length);
+}
+$("ccBtn").onclick = () => openPop("ccPop", $("ccBtn"));
+$("ccToggle").onclick = () => setCaptions(!cap.wanted);
+$("ccSpeak").onchange = () => {
+  cap.lang = $("ccSpeak").value;
+  try { localStorage.setItem("gvc-cc-lang", cap.lang); } catch (e) {}
+  cap.blocked = false;
+  stopListening();                        // listen again in the new language
+  capSync();
+  sendState();
+};
+$("ccShow").onchange = () => {
+  cap.show = $("ccShow").value;
+  try { localStorage.setItem("gvc-cc-show", cap.show); } catch (e) {}
+  prepareTranslators();
+  for (const [who, line] of cap.lines) {  // redo what's on screen in the new language
+    for (const s of line.finals) translateSeg(who, s, line.lang);
+    line.interimShown = null;
+    renderCapLine(who);
+  }
+  showCapUI();
+};
+
+// Listen to my own voice while anyone (me included) wants captions and my mic is on.
+function captionsNeeded() {
+  if (!inCall || left) return false;
+  if (cap.wanted) return true;
+  for (const [id, st] of pstate) if (st.cc && calls.has(id)) return true;
+  return false;
+}
+function capSync() {
+  const should = !!SR && !cap.blocked && captionsNeeded() && micOn();
+  if (should && !cap.sr) startListening();
+  else if (!should && cap.sr) stopListening();
+  showCapUI();
+}
+function startListening() {
+  clearTimeout(cap.restartT);
+  let r;
+  try { r = new SR(); } catch (e) { cap.blocked = true; return; }
+  r.lang = cap.lang; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onstart = () => { if (cap.sr === r) { cap.listening = true; showCapUI(); } };
+  r.onresult = e => {
+    if (cap.sr !== r) return;
+    cap.errors = 0;
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const res = e.results[i], text = String((res[0] && res[0].transcript) || "").trim();
+      if (!text) continue;
+      if (res.isFinal) myCaption(text, true);
+      else interim += (interim ? " " : "") + text;
+    }
+    if (interim) myCaption(interim, false);
+  };
+  r.onerror = e => {
+    if (cap.sr !== r) return;
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      cap.blocked = true; toast("This browser won't let captions use your microphone");
+    } else if (e.error === "language-not-supported") {
+      cap.blocked = true; toast("This browser can't caption " + langLabel(cap.lang) + " — pick another language under Captions");
+    } else if (e.error !== "no-speech" && e.error !== "aborted") {
+      if (++cap.errors === 4) toast("Captions are having trouble — they need an internet connection");
+    }
+  };
+  r.onend = () => {
+    if (cap.sr !== r) return;             // I stopped it on purpose
+    cap.sr = null; cap.listening = false;
+    endMyUtterance();
+    // Browsers stop listening every so often (after a pause, or after a minute): start again if still wanted.
+    cap.restartT = setTimeout(capSync, cap.errors ? Math.min(15000, 500 * 2 ** cap.errors) : 150);
+    showCapUI();
+  };
+  cap.sr = r;
+  try { r.start(); } catch (e) { console.warn(e); cap.sr = null; }
+}
+function stopListening() {
+  const r = cap.sr;
+  cap.sr = null; cap.listening = false;
+  clearTimeout(cap.restartT);
+  if (r) { try { r.abort(); } catch (e) {} endMyUtterance(); }
+  showCapUI();
+}
+function myCaption(text, final) {
+  text = text.slice(-400);
+  if (final) {
+    clearTimeout(cap.pendT); cap.pendT = null; cap.pending = null;
+    sendCaption({ t: "cc", id: cap.seg++, text, final: true, lang: cap.lang });
+  } else {
+    cap.pending = text;                   // words in progress go out at most 5 times a second
+    if (!cap.pendT) cap.pendT = setTimeout(() => {
+      cap.pendT = null;
+      if (cap.pending) sendCaption({ t: "cc", id: cap.seg, text: cap.pending, final: false, lang: cap.lang });
+      cap.pending = null;
+    }, 200);
+  }
+}
+function endMyUtterance() {               // cut off mid-sentence (muted, stopped): clear the half-said words
+  clearTimeout(cap.pendT); cap.pendT = null; cap.pending = null;
+  sendCaption({ t: "cc", id: cap.seg++, text: "", final: false, lang: cap.lang });
+}
+function sendCaption(msg) {               // only to people who switched captions on
+  for (const [id, c] of peerConns) { const st = pstate.get(id); if (c.open && st && st.cc) try { c.send(msg); } catch (e) {} }
+  if (cap.wanted) showCaption("me", msg);
+}
+function receiveCap(id, msg) {
+  if (!cap.wanted || !calls.has(id) || typeof msg.text !== "string" || !Number.isInteger(msg.id)) return;
+  const lang = typeof msg.lang === "string" && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(msg.lang) ? msg.lang : "en";
+  showCaption(id, { id: msg.id, text: msg.text.slice(0, 400), final: !!msg.final, lang });
+}
+
+// One caption box per speaker: their last few sentences, plus the words they're saying right now.
+function showCaption(who, msg) {
+  let line = cap.lines.get(who);
+  if (!line) {
+    if (!msg.text) return;
+    const el = document.createElement("div");
+    el.className = "cap";
+    line = { el, finals: [], interim: "", interimId: -1, interimShown: null, iReq: 0, at: 0, lang: msg.lang };
+    cap.lines.set(who, line);
+  }
+  line.lang = msg.lang;
+  if (msg.final) {
+    const seg = { id: msg.id, text: msg.text, shown: null };
+    line.finals.push(seg);
+    while (line.finals.length > 3) line.finals.shift();
+    if (line.interimId <= msg.id) { line.interim = ""; line.interimShown = null; }
+    translateSeg(who, seg, msg.lang);
+  } else {
+    if (msg.id < line.interimId) return;  // arrived late
+    line.interimId = msg.id; line.interim = msg.text; line.interimShown = null;
+    if (msg.text && who !== "me") translateInterim(who, line, msg.lang);
+  }
+  if (msg.text) {
+    const now = performance.now();
+    if (!line.el.parentNode || now - line.at > 3000) $("captions").appendChild(line.el);   // a new turn goes at the bottom
+    line.at = now;
+  }
+  renderCapLine(who);
+}
+function renderCapLine(who) {
+  const line = cap.lines.get(who);
+  if (!line) return;
+  const el = line.el;
+  el.textContent = "";
+  const b = document.createElement("b");
+  b.textContent = who === "me" ? "You" : nameOf(who);
+  el.appendChild(b);
+  const pieces = line.finals.map(s => ({ t: s.shown != null ? s.shown : s.text, c: s.shown != null ? "" : "wait" }));
+  const live = line.interimShown != null ? line.interimShown : line.interim;
+  if (live) pieces.push({ t: live, c: "interim" });
+  let total = pieces.reduce((n, p) => n + p.t.length + 1, 0);
+  while (total > 220 && pieces.length > 1) total -= pieces.shift().t.length + 1;    // keep it to about two lines
+  if (pieces.length && pieces[0].t.length > 220) pieces[0].t = "…" + pieces[0].t.slice(-200);
+  for (const p of pieces) {
+    const s = document.createElement("span");
+    if (p.c) s.className = p.c;
+    s.textContent = p.t + " ";
+    el.appendChild(s);
+  }
+  el.classList.toggle("hidden", !pieces.length);
+}
+function dropCapLine(who) {
+  const line = cap.lines.get(who);
+  if (line) { line.el.remove(); cap.lines.delete(who); }
+}
+function clearCapInterim(who) {
+  const line = cap.lines.get(who);
+  if (line && line.interim) { line.interim = ""; line.interimShown = null; renderCapLine(who); }
+}
+setInterval(() => {                       // tidy up: quiet speakers fade out; at most three boxes at once
+  if (!cap.lines.size) return;
+  const now = performance.now();
+  for (const [who, line] of [...cap.lines]) {
+    if (now - line.at > 8000) dropCapLine(who);
+    else if (line.interim && now - line.at > 4000) { line.interim = ""; line.interimShown = null; renderCapLine(who); }
+  }
+  [...cap.lines.values()].sort((a, b) => b.at - a.at).forEach((l, i) => { l.el.style.display = i < 3 ? "" : "none"; });
+}, 1000);
+
+// Translation into the language I read captions in.
+const capTarget = src => cap.show && baseLang(src) !== cap.show ? cap.show : null;
+async function translateSeg(who, seg, src) {
+  const tgt = who === "me" ? null : capTarget(src);     // my own words stay as I said them
+  if (!tgt) { seg.shown = seg.text; return; }
+  seg.shown = null;                       // shown faded in the original language until the translation arrives
+  const text = seg.text;
+  let out = null;
+  try { out = await translateText(text, baseLang(src), tgt); } catch (e) { console.warn(e); }
+  if (seg.text !== text) return;
+  seg.shown = out || text;
+  renderCapLine(who);
+}
+async function translateInterim(who, line, src) {       // words in progress: only with the free on-device translator
+  const tgt = capTarget(src);
+  if (!tgt) return;
+  const req = ++line.iReq, text = line.interim;
+  const tr = await onDeviceTranslator(baseLang(src), tgt);
+  if (!tr || req !== line.iReq) return;
+  try {
+    const out = await tr.translate(text);
+    if (req === line.iReq && line.interim === text) { line.interimShown = out; renderCapLine(who); }
+  } catch (e) {}
+}
+// Chrome on a computer has a translator built in (Chrome 138+). Its language pack downloads the first
+// time, and that needs a click, so it's set up when captions or a language are chosen.
+function onDeviceTranslator(src, tgt) {
+  if (!("Translator" in self)) return Promise.resolve(null);
+  const key = src + ">" + tgt;
+  if (cap.trans.has(key)) return cap.trans.get(key);
+  const canDownload = !!(navigator.userActivation && navigator.userActivation.isActive);
+  const p = (async () => {
+    const opts = { sourceLanguage: src, targetLanguage: tgt };
+    const a = await Translator.availability(opts);
+    if (a === "unavailable") return null;
+    if (a !== "available" && !canDownload) throw new Error("needs a click to download");
+    if (a !== "available") toast("Getting " + langLabel(tgt) + " translation ready on this device…");
+    return await Translator.create(opts);
+  })();
+  const safe = p.catch(() => { cap.trans.delete(key); return null; });   // failed: the next click tries again
+  cap.trans.set(key, safe);
+  return safe;
+}
+function prepareTranslators() {
+  if (!cap.show || !("Translator" in self)) return;
+  const langs = new Set([baseLang(cap.lang)]);
+  for (const [id, st] of pstate) if (calls.has(id) && st.lang) langs.add(baseLang(st.lang));
+  for (const l of langs) if (l !== cap.show) onDeviceTranslator(l, cap.show);
+}
+async function translateText(text, src, tgt) {
+  const tr = await onDeviceTranslator(src, tgt);
+  if (tr) { try { return await tr.translate(text); } catch (e) { console.warn(e); } }
+  return onlineTranslate(text, src, tgt);
+}
+function cutBytes(s, n) {                 // MyMemory takes at most 500 bytes at a time
+  const enc = new TextEncoder();
+  while (s && enc.encode(s).length > n) s = s.slice(0, Math.floor(s.length * 0.9));
+  return s;
+}
+async function onlineTranslate(text, src, tgt) {
+  if (Date.now() < cap.onlineOffUntil) return null;
+  const mm = l => l === "zh" ? "zh-CN" : l;
+  const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(cutBytes(text, 480)) +
+              "&langpair=" + encodeURIComponent(mm(src) + "|" + mm(tgt));
+  try {
+    const j = await (await fetch(url)).json();
+    const out = j && j.responseData && j.responseData.translatedText;
+    if (+j.responseStatus === 200 && typeof out === "string" && out && !/MYMEMORY WARNING/i.test(out)) return decodeEntities(out);
+    if (+j.responseStatus === 429 || /MYMEMORY WARNING/i.test(String(out || ""))) {
+      cap.onlineOffUntil = Date.now() + 3600000;
+      toast("Today's free translation limit is used up — showing captions as spoken");
+    }
+  } catch (e) { console.warn("translation failed", e); }
+  return null;
+}
+function decodeEntities(s) {              // MyMemory sometimes sends &#39; and friends (read as text, never run)
+  if (!/&[#a-z0-9]+;/i.test(s)) return s;
+  return new DOMParser().parseFromString("<!doctype html><body>" + s, "text/html").body.textContent || s;
+}
+showCapUI();
 
 /* ---------------- People panel: who's here, raised hands, and host controls ---------------- */
 let peopleOpen = false;
@@ -3093,6 +3835,187 @@ $("chatForm").onsubmit = e => {
   $("chatInput").value = "";
 };
 
+/* ---------------- active speaker: a green glow around whoever is talking ---------------- */
+// Other people's loudness comes straight from the call link (the level of the last sound packet that
+// arrived). Mine comes from my microphone through a small audio analyser. Nothing extra is sent.
+const speak = { ctx: null, an: null, src: null, buf: null, track: null, until: new Map() };
+function startLevels() {                    // called from the Join click, so the browser lets audio analysis start
+  try {
+    if (!speak.ctx) speak.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (speak.ctx.state === "suspended") speak.ctx.resume().catch(() => {});
+  } catch (e) {}
+}
+function myLevel() {
+  const t = localStream && localStream.getAudioTracks()[0];
+  if (!speak.ctx || !t || !t.enabled || t.readyState !== "live") return 0;
+  if (speak.track !== t) {                  // first time, or the mic changed
+    try { if (speak.src) speak.src.disconnect(); } catch (e) {}
+    try {
+      speak.src = speak.ctx.createMediaStreamSource(new MediaStream([t]));
+      speak.an = speak.ctx.createAnalyser();
+      speak.an.fftSize = 1024;
+      const silent = speak.ctx.createGain();
+      silent.gain.value = 0;                // some browsers only analyse sound that goes somewhere
+      speak.src.connect(speak.an); speak.an.connect(silent); silent.connect(speak.ctx.destination);
+      speak.buf = new Float32Array(speak.an.fftSize);
+      speak.track = t;
+    } catch (e) { return 0; }
+  }
+  speak.an.getFloatTimeDomainData(speak.buf);
+  let sum = 0;
+  for (let i = 0; i < speak.buf.length; i++) sum += speak.buf[i] * speak.buf[i];
+  return Math.sqrt(sum / speak.buf.length);
+}
+function peerLevel(c) {
+  const pc = c.peerConnection;
+  if (!pc || !pc.getReceivers) return 0;
+  let lvl = 0;
+  for (const r of pc.getReceivers()) {
+    if (!r.track || r.track.kind !== "audio" || !r.getSynchronizationSources) continue;
+    for (const s of r.getSynchronizationSources()) lvl = Math.max(lvl, s.audioLevel || 0);
+  }
+  return lvl;
+}
+setInterval(() => {
+  if (!inCall || left) return;
+  const now = performance.now();
+  const levels = [["me", micOn() ? myLevel() : 0, 0.02]];
+  for (const [id, c] of calls) { const st = pstate.get(id); levels.push([id, st && !st.mic ? 0 : peerLevel(c), 0.03]); }
+  for (const [id, lvl, min] of levels) {
+    if (lvl > min) speak.until.set(id, now + 700);        // stays lit for a moment between words
+    const tile = $("tile-" + id);
+    if (tile) tile.classList.toggle("speaking", (speak.until.get(id) || 0) > now);
+  }
+  for (const id of [...speak.until.keys()]) if (id !== "me" && !calls.has(id)) speak.until.delete(id);
+}, 150);
+
+/* ---------------- push-to-talk and keyboard shortcuts ---------------- */
+// While muted: hold Space (or press and hold the mic button on a phone) to talk; let go to be muted again.
+let ptt = false, pttTold = false;
+const pttActive = () => ptt;
+function pttDown() {
+  if (ptt || !inCall || left || micOn() || !localStream || !localStream.getAudioTracks()[0]) return;
+  ptt = true;
+  $("pttPill").classList.remove("hidden");
+  setMic(true);
+}
+function pttUp() {
+  if (!ptt) return;
+  ptt = false;
+  $("pttPill").classList.add("hidden");
+  if (!left) setMic(false);
+}
+function pttTip() {                         // the first time I mute, say how push-to-talk works
+  if (pttTold || !inCall || left) return;
+  pttTold = true;
+  try { if (localStorage.getItem("gvc-ptt-tip")) return; localStorage.setItem("gvc-ptt-tip", "1"); } catch (e) {}
+  const touch = matchMedia("(pointer: coarse)").matches;
+  setTimeout(() => toast(touch ? "Tip: press and hold the mic button to talk while muted" : "Tip: hold Space to talk while muted"), 700);
+}
+let micHold = null, micHeld = false;
+$("mic").addEventListener("pointerdown", e => {
+  micHeld = false;                          // a fresh press
+  if (e.button > 0 || micOn()) return;
+  clearTimeout(micHold);
+  micHold = setTimeout(() => { micHold = null; micHeld = true; pttDown(); }, 350);
+});
+const micRelease = () => {
+  clearTimeout(micHold); micHold = null;
+  if (micHeld) pttUp();                     // micHeld stays set so the click that ends the hold is ignored
+};
+["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("mic").addEventListener(ev, micRelease));
+$("mic").addEventListener("contextmenu", e => e.preventDefault());
+$("mic").onclick = () => {
+  if (micHeld) { micHeld = false; return; }
+  if (ptt) { ptt = false; $("pttPill").classList.add("hidden"); }
+  setMic(!micOn());
+};
+
+const SHORTCUTS = [["M", "Mute or unmute"], ["Hold Space", "Talk while muted"], ["V", "Camera on or off"],
+  ["C", "Captions on or off"], ["H", "Raise or lower your hand"], ["1 – 7", "Send a reaction"], ["T", "Open or close chat"],
+  ["P", "Open or close People"], ["S", "Share your screen"], ["E", "Backgrounds and face filters"], ["D", "Draw on your video"],
+  ["W", "Whiteboard"], ["Ctrl + Z", "Undo your last line"], ["?", "Show these shortcuts"], ["Esc", "Close pop-ups"]];
+const typing = el => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+addEventListener("keydown", e => {
+  if (!inCall || left || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+  if (!$("leaveSheet").classList.contains("hidden")) return;          // "Leave the call?" is open
+  if (e.code === "Space") { e.preventDefault(); if (!e.repeat) pttDown(); return; }
+  if (e.repeat) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const press = id => { const b = $(id); if (b && !b.classList.contains("hidden")) { e.preventDefault(); b.click(); } };
+  if (k === "?") { e.preventDefault(); toggleKeys(); return; }
+  const n = /^[1-9]$/.test(k) ? +k : 0;
+  if (n && n <= REACTIONS.length) { sendReaction(REACTIONS[n - 1]); return; }
+  const keys = { m: "mic", v: "cam", h: "raiseBtn", t: "chatBtn", p: "peopleBtn", s: "share", d: "draw", w: "wbBtn" };
+  if (keys[k]) press(keys[k]);
+  else if (k === "c") { e.preventDefault(); setCaptions(!cap.wanted); }
+  else if (k === "e" && !$("filterBtn").classList.contains("hidden")) { e.preventDefault(); openPop("filterPop", $("filterBtn")); }
+});
+addEventListener("keyup", e => {
+  if (e.code !== "Space" || typing(e.target)) return;
+  if (inCall && !left) e.preventDefault();  // Space mustn't also press whichever button has focus
+  pttUp();
+});
+addEventListener("blur", pttUp);            // switched windows while holding Space
+document.addEventListener("visibilitychange", () => { if (document.hidden) pttUp(); });
+
+// A small sheet for the shortcut list and the iPhone install steps.
+function showInfo(title, build) {
+  $("infoTitle").textContent = title;
+  const body = $("infoBody");
+  body.textContent = "";
+  build(body);
+  $("infoSheet").classList.remove("hidden");
+}
+function hideInfo() { $("infoSheet").classList.add("hidden"); }
+$("infoOk").onclick = hideInfo;
+$("infoSheet").onclick = e => { if (e.target === $("infoSheet")) hideInfo(); };
+function toggleKeys() {
+  if (!$("infoSheet").classList.contains("hidden")) { hideInfo(); return; }
+  showInfo("Keyboard shortcuts", body => {
+    for (const [key, what] of SHORTCUTS) {
+      const row = document.createElement("div");
+      row.className = "krow";
+      const a = document.createElement("span"); a.textContent = what;
+      const b = document.createElement("kbd"); b.textContent = key;
+      row.append(a, b);
+      body.appendChild(row);
+    }
+  });
+}
+$("keysBtn").onclick = toggleKeys;
+
+/* ---------------- install as a phone app ---------------- */
+// With manifest.webmanifest, sw.js and the two icons next to this page, phones and computers can install
+// the call as an app with its own icon. Chrome and Edge (Android and computers) offer it straight away;
+// on an iPhone it's Share → Add to Home Screen.
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let installEvt = null;
+function showInstall() { $("installBtn").classList.toggle("hidden", isStandalone() || !(installEvt || isIOS)); }
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; showInstall(); });
+addEventListener("appinstalled", () => { installEvt = null; showInstall(); toast("Installed — open Video Call from your home screen"); });
+$("installBtn").onclick = async () => {
+  if (installEvt) {
+    const ev = installEvt;
+    installEvt = null;
+    try { await ev.prompt(); await ev.userChoice; } catch (e) {}
+    showInstall();
+  } else if (isIOS) {
+    showInfo("Install on iPhone or iPad", body => {
+      for (const t of ["1. Tap the Share button (the square with an arrow pointing up). In Safari it's at the bottom; in Chrome it's at the top.",
+                       "2. Scroll down and choose “Add to Home Screen”, then tap Add.",
+                       "Video Call then opens from its own icon on your home screen, like an app."]) {
+        const p = document.createElement("p"); p.textContent = t; body.appendChild(p);
+      }
+    });
+  }
+};
+showInstall();
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});   // no sw.js uploaded? then it just isn't installable
+}
+
 /* ---------------- other buttons ---------------- */
 $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText(INVITE); toast("Invite link copied"); }
@@ -3145,6 +4068,7 @@ addEventListener("popstate", () => {
 });
 function closeTopmost() {
   if (!$("leaveSheet").classList.contains("hidden")) { hideLeaveSheet(); return true; }   // back again = stay
+  if (!$("infoSheet").classList.contains("hidden")) { hideInfo(); return true; }
   if (!$("viewer").classList.contains("hidden")) { $("viewer").classList.add("hidden"); return true; }
   if (POPS.some(id => !$(id).classList.contains("hidden")) || !$("moreMenu").classList.contains("hidden")) {
     closePops(); closeMore(); return true;
