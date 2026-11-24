@@ -4193,24 +4193,55 @@ $("keysBtn").onclick = toggleKeys;
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 let installEvt = null;
-function showInstall() { $("installBtn").classList.toggle("hidden", isStandalone() || !(installEvt || isIOS)); }
+// The button is always on the start screen (except inside the installed app itself). If the browser is
+// ready to install, tapping it opens the browser's own install prompt; otherwise it shows the steps for
+// this phone or computer. (Chrome only offers its prompt after a little use of the page, and browsers
+// inside WhatsApp/Instagram never do.)
+function showInstall() { $("installBtn").classList.toggle("hidden", isStandalone()); }
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; showInstall(); });
 addEventListener("appinstalled", () => { installEvt = null; showInstall(); toast("Installed — open Video Call from your home screen"); });
+function installSteps() {
+  const ua = navigator.userAgent;
+  const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Snapchat|; wv\)/i.test(ua);
+  const android = /Android/i.test(ua), samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua);
+  const edge = /Edg\//i.test(ua), chrome = /Chrome|CriOS/i.test(ua) && !edge && !samsung;
+  if (isIOS) return ["Install on iPhone or iPad", [
+    "1. Tap the Share button (the square with an arrow pointing up). In Safari it's at the bottom; in Chrome it's at the top.",
+    "2. Scroll down and choose “Add to Home Screen”, then tap Add."]];
+  if (inApp) return ["Open it in your browser first", [
+    "This page is open inside another app (like WhatsApp or Instagram), which can't install apps.",
+    "1. Tap the ⋮ menu (top right) and choose “Open in Chrome” (or “Open in browser”).",
+    "2. Then tap “Install as an app” again."], true];
+  if (android && samsung) return ["Install on your phone", [
+    "1. Tap the ≡ menu at the bottom right.", "2. Choose “Add page to”, then “Home screen”."]];
+  if (android && firefox) return ["Install on your phone", [
+    "1. Tap the ⋮ menu.", "2. Choose “Add app to Home screen” (or “Install”)."]];
+  if (android) return ["Install on your phone", [
+    "1. Tap the ⋮ menu at the top right of Chrome.",
+    "2. Choose “Add to Home screen”, then “Install” (on some phones it says “Install app”)."]];
+  if (edge) return ["Install on your computer", [
+    "1. Click the … menu at the top right of Edge.", "2. Choose Apps → “Install this site as an app”."]];
+  if (chrome) return ["Install on your computer", [
+    "1. Click the install icon at the right end of the address bar (a screen with a down arrow), or",
+    "2. Open the ⋮ menu → “Cast, save, and share” → “Install page as app”."]];
+  return ["Install the app", ["This browser can't install apps. Open the link in Chrome or Edge (or Safari on an iPhone) and tap “Install as an app” there."], true];
+}
 $("installBtn").onclick = async () => {
-  if (installEvt) {
+  if (installEvt) {                        // the browser's own install prompt
     const ev = installEvt;
     installEvt = null;
     try { await ev.prompt(); await ev.userChoice; } catch (e) {}
     showInstall();
-  } else if (isIOS) {
-    showInfo("Install on iPhone or iPad", body => {
-      for (const t of ["1. Tap the Share button (the square with an arrow pointing up). In Safari it's at the bottom; in Chrome it's at the top.",
-                       "2. Scroll down and choose “Add to Home Screen”, then tap Add.",
-                       "Video Call then opens from its own icon on your home screen, like an app."]) {
-        const p = document.createElement("p"); p.textContent = t; body.appendChild(p);
-      }
-    });
+    return;
   }
+  const [title, steps, noInstall] = installSteps();
+  const after = noInstall ? [] : ["Video Call then opens from its own purple icon on your home screen, like an app.",
+                                  "Already installed? Just open it from that icon."];
+  showInfo(title, body => {
+    for (const t of [...steps, ...after]) {
+      const p = document.createElement("p"); p.textContent = t; body.appendChild(p);
+    }
+  });
 };
 showInstall();
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
