@@ -59,6 +59,10 @@
              font-size: 15px; background: linear-gradient(135deg, var(--accent2), var(--accent)); }
   .primary:disabled { opacity: .55; cursor: not-allowed; }
   .primary:not(:disabled):hover { filter: brightness(1.06); }
+  .ghost:disabled { opacity: .55; cursor: not-allowed; }
+  #recPop { display: flex; gap: 6px; }
+  #recPop.hidden { display: none; }
+  #recPop .fopt { width: 128px; padding: 10px 6px; font-size: 13px; }
   .ghost { width: 100%; margin-top: 8px; padding: 12px; border-radius: 11px; font-weight: 600; font-size: 15px;
            background: var(--panel2); color: var(--accent); border: 1px solid var(--accent2); }
   .textBtn { display: block; margin: 12px auto 0; background: none; color: var(--accent); font-size: 14px;
@@ -419,6 +423,7 @@
     <input type="text" id="nameInput" maxlength="24" placeholder="e.g. Anmol" autocomplete="off">
     <div id="linkInfo" class="hidden"><span>Meeting ID</span><b id="linkId"></b></div>
     <button class="primary" id="joinBtn" disabled>New meeting</button>
+    <button class="ghost" id="audioBtn" disabled>📞 New audio call</button>
     <button class="ghost hidden" id="startNow">Start this meeting now</button>
     <div id="joinById">
       <div class="or"><span>or join with a meeting ID</span></div>
@@ -438,6 +443,7 @@
     <span class="title">Group Video Call</span>
     <span class="pill" id="count">1 in call</span>
     <span class="pill hidden" id="hostPill">Host</span>
+    <span class="pill hidden" id="audioPill" title="Everyone joins with sound only — no cameras">📞 Audio call</span>
     <span class="pill hidden" id="recPill"></span>
     <span class="pill hidden" id="pttPill">🎙️ Talking</span>
     <span class="pill hidden" id="ccPill" title="Your speech is being turned into captions for people who switched captions on">CC</span>
@@ -579,6 +585,10 @@
   <div class="fgrid" id="faceGrid"></div>
   <input type="file" id="bgFile" accept="image/*" hidden>
 </div>
+<div id="recPop" class="pop hidden">
+  <button class="fopt" data-k="video"><b>🎥</b><span>Video and sound</span></button>
+  <button class="fopt" data-k="audio"><b>🎙️</b><span>Sound only</span></button>
+</div>
 <div id="ccPop" class="pop hidden">
   <button class="dctl" id="ccToggle">Captions: off</button>
   <label for="ccSpeak">I speak</label>
@@ -650,7 +660,8 @@ let startWaitT = null;
 let myName = "", myId = null, left = false, inCall = false, isHost = false;
 let localStream = null;          // camera + mic
 let screenStream = null;         // set while sharing the screen
-let placeholderCam = false;      // true if there is no real camera
+let placeholderCam = false;      // true if there is no real camera (or it's switched off for an audio call)
+let audioCall = false;           // an audio call: everyone joins with sound only
 let audioCtx = null, mixedTrack = null;   // mic + screen sound mixed together while sharing
 let me = null;                   // my PeerJS connection (random ID)
 let lobby = null;                // set only if I am the host
@@ -1047,7 +1058,7 @@ function admit(conn, name, alreadyKnown) {
     for (const c of lobbyConns.values()) if (c.open) try { c.send({ type: "admit", id, name }); } catch (e) {}
   }
   lobbyConns.set(id, conn);
-  try { conn.send({ type: "members", members: [...members].map(([mid, mname]) => ({ id: mid, name: mname })) }); } catch (e) {}
+  try { conn.send({ type: "members", members: [...members].map(([mid, mname]) => ({ id: mid, name: mname })), audio: audioCall }); } catch (e) {}
   try { conn.send(rolesMsg()); } catch (e) {}            // who's host and co-host
   if (cohosts.has(id)) sendKnocks(id);
 }
@@ -1295,7 +1306,7 @@ function enterLobby() {
       if (calls.has(id) || allowed.has(id)) { admit(conn, name, true); return; }   // already in the call
       if (roster(id).size >= MAX_PEOPLE) { try { conn.send({ type: "full" }); } catch (e) {} return; }
       addKnock(conn, name);
-      try { conn.send({ type: "waiting" }); } catch (e) {}
+      try { conn.send({ type: "waiting", audio: audioCall }); } catch (e) {}   // audio: it's an audio call
     });
     conn.on("close", () => {
       if (lobbyConns.get(conn.peer) === conn) lobbyConns.delete(conn.peer);
@@ -1329,6 +1340,7 @@ function askLobby() {
       answered = true;
       clearTimeout(startWaitT);
       $("startNow").classList.add("hidden");
+      if (msg.audio) goAudioOnly();              // an audio call: my camera switches off straight away
       if (!inCall) { $("joinSub").textContent = "Asked to join. Waiting for the host to let you in…"; $("joinBtn").textContent = "Waiting for host…"; }
     } else if (msg.type === "ended") {
       leaveCall("The host ended the call.");
@@ -1354,6 +1366,7 @@ function askLobby() {
       if (typeof msg.to === "string") hostMove = { to: msg.to, until: Date.now() + 12000 };
     } else if (msg.type === "members") {
       answered = true;
+      if (msg.audio) goAudioOnly();              // before calling anyone, so nobody gets my video
       enterCallUI();
       for (const m of msg.members || []) {
         if (!m || typeof m.id !== "string") continue;
@@ -1394,6 +1407,7 @@ function notStartedYet() {
 $("startNow").onclick = () => {            // nobody's there: I'll be the host
   clearTimeout(startWaitT);
   joinMode = "start";
+  try { if (sessionStorage.getItem("gvc-audio-" + ROOM)) goAudioOnly(); } catch (e) {}   // it was an audio call
   $("startNow").classList.add("hidden");
   $("joinBtn").textContent = "Starting…";
   enterLobby();                            // if the host turned up meanwhile, this just asks to join them
@@ -1461,6 +1475,7 @@ async function initPreview() {
     $("previewMsg").classList.add("hidden");
   }
   $("joinBtn").disabled = false;
+  $("audioBtn").disabled = false;
   mediaReady = true;
   updateRoomJoin();
 }
@@ -1474,6 +1489,7 @@ function showStartScreen() {
   $("linkInfo").classList.toggle("hidden", !invited);
   $("linkId").textContent = prettyRoom(ROOM);
   $("joinById").classList.toggle("hidden", invited);
+  $("audioBtn").classList.toggle("hidden", invited);
   $("newInstead").classList.toggle("hidden", !invited);
   $("joinSub").textContent = invited ? "You're invited to a meeting. Check your camera, enter your name, and join."
                                      : "Check your camera, enter your name, then start a new meeting or join one.";
@@ -1534,6 +1550,34 @@ function updateRoomJoin() {
   idBoxes.forEach(b => b.classList.toggle("filled", !!b.value));
   $("roomJoin").disabled = !mediaReady || typedId().length !== ID_LEN;
 }
+// Audio call: everyone joins with sound only. My camera is switched off (its light goes out) and a still,
+// dark placeholder is sent in its place, so the call uses very little data. People joining an audio call
+// are told by the host and switch to sound only before they connect.
+function goAudioOnly() {
+  if (audioCall) return;
+  audioCall = true;
+  const v = localStream && localStream.getVideoTracks()[0];
+  if (v && !placeholderCam) {
+    const still = blackTrack();
+    localStream.removeTrack(v);
+    v.stop();
+    localStream.addTrack(still);
+    if (inCall) swapOutgoing("video", still);
+  }
+  placeholderCam = true;
+  face.filter = null; bg.mode = null;
+  if (draw.on) stopDrawing(); else if (draw.pipe) pipeUpdate();
+  stopGestures();
+  $("preview").srcObject = null;
+  $("previewMsg").textContent = "📞 Audio call — your camera is off";
+  $("previewMsg").classList.remove("hidden");
+  for (const id of ["cam", "flip", "filterBtn", "share", "draw"]) $(id).classList.add("hidden");
+  $("audioPill").classList.remove("hidden");
+  $("linkId").textContent = prettyRoom(ROOM) + " · audio call";
+  try { if (ROOM) sessionStorage.setItem("gvc-audio-" + ROOM, "1"); } catch (e) {}   // so Rejoin stays an audio call
+  if (inCall) { updateLocalTile(); sendState(); arrangeControls(); }
+}
+$("audioBtn").onclick = () => { setRoom(newRoomCode()); joinMode = "start"; goAudioOnly(); requestJoin(); };
 function startOrJoin() {                   // the big button
   if (ROOM) joinMode = "join";             // the meeting from the invite link
   else { setRoom(newRoomCode()); joinMode = "start"; }
@@ -1560,8 +1604,9 @@ function requestJoin() {
   $("nameInput").disabled = true;
   $("joinById").classList.add("hidden");   // show which meeting I'm going into
   $("newInstead").classList.add("hidden");
+  $("audioBtn").classList.add("hidden");
   $("linkInfo").classList.remove("hidden");
-  $("linkId").textContent = prettyRoom(ROOM);
+  $("linkId").textContent = prettyRoom(ROOM) + (audioCall ? " · audio call" : "");
   armBack();                               // from now on, back asks before leaving
   startPeer();
 }
@@ -1585,8 +1630,9 @@ function enterCallUI() {
   tile.querySelector("video").muted = true;
   updateLocalTile(true);
   if (placeholderCam) $("cam").classList.add("hidden");
-  if (!navigator.mediaDevices.getDisplayMedia) $("share").classList.add("hidden");
-  if (!HTMLCanvasElement.prototype.captureStream) $("draw").classList.add("hidden");
+  if (!navigator.mediaDevices.getDisplayMedia || audioCall) $("share").classList.add("hidden");
+  if (!HTMLCanvasElement.prototype.captureStream || audioCall) $("draw").classList.add("hidden");
+  $("audioPill").classList.toggle("hidden", !audioCall);
   if (!canRecord()) $("recBtn").classList.add("hidden");
   if (!HTMLCanvasElement.prototype.captureStream || placeholderCam) $("filterBtn").classList.add("hidden");
   refreshCams();
@@ -1636,6 +1682,7 @@ function leaveCall(message) {
   clearTimeout(startWaitT);
   $("startNow").classList.add("hidden");
   $("joinById").classList.add("hidden");
+  $("audioBtn").classList.add("hidden");
   $("joinBtn").textContent = "Rejoin";
   $("joinBtn").disabled = false;
   $("joinBtn").onclick = () => location.reload();
@@ -2512,6 +2559,11 @@ const rec = {
 };
 const canRecord = () => !!(window.MediaRecorder && HTMLCanvasElement.prototype.captureStream &&
                            (window.AudioContext || window.webkitAudioContext));
+function recAudioFormat() {      // M4A plays almost everywhere; otherwise WebM or Ogg (Opus)
+  const types = ["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+  for (const t of types) try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {}
+  return "";
+}
 function recFormat() {           // MP4 plays almost everywhere; otherwise WebM
   const types = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
                  "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
@@ -2672,10 +2724,13 @@ function recFrame() {
   if (++rec.frame % 25 === 0) recSyncAudio();                 // about once a second
 }
 
-async function startRecording() {
+// kind "video": the whole call as a video. kind "audio": everyone's sound only (a much smaller file).
+async function startRecording(kind) {
   if (rec.on || !inCall || left) return;
   if (!canRecord()) { toast("Recording isn't supported in this browser"); return; }
-  if (!rec.canvas) {
+  const soundOnly = kind === "audio";
+  rec.kind = soundOnly ? "audio" : "video";
+  if (!soundOnly && !rec.canvas) {
     rec.canvas = document.createElement("canvas");
     rec.canvas.width = REC_W; rec.canvas.height = REC_H;
     rec.g = rec.canvas.getContext("2d");
@@ -2687,10 +2742,14 @@ async function startRecording() {
     rec.sources = new Map();
     recSyncAudio();
     rec.frame = 0;
-    recFrame();
-    const stream = new MediaStream([rec.canvas.captureStream(25).getVideoTracks()[0], rec.dest.stream.getAudioTracks()[0]]);
-    rec.type = recFormat();
-    const opts = { videoBitsPerSecond: 1500000, audioBitsPerSecond: 128000 };
+    let stream;
+    if (soundOnly) stream = new MediaStream([rec.dest.stream.getAudioTracks()[0]]);
+    else {
+      recFrame();
+      stream = new MediaStream([rec.canvas.captureStream(25).getVideoTracks()[0], rec.dest.stream.getAudioTracks()[0]]);
+    }
+    rec.type = soundOnly ? recAudioFormat() : recFormat();
+    const opts = soundOnly ? { audioBitsPerSecond: 128000 } : { videoBitsPerSecond: 1500000, audioBitsPerSecond: 128000 };
     if (rec.type) opts.mimeType = rec.type;
     rec.mr = new MediaRecorder(stream, opts);
   } catch (e) {
@@ -2706,17 +2765,19 @@ async function startRecording() {
   rec.mr.start(1000);                                        // hand over data every second
   rec.on = true;
   rec.started = Date.now();
-  rec.stopTick = startTicker(() => {
-    const now = performance.now();
-    if (now - rec.last < 30) return;                         // skip ticks that piled up
-    rec.last = now;
-    recFrame();
-  }, 40);
+  rec.stopTick = soundOnly ? startTicker(recSyncAudio, 1000)   // sound only: just keep the sound mix up to date
+    : startTicker(() => {
+      const now = performance.now();
+      if (now - rec.last < 30) return;                       // skip ticks that piled up
+      rec.last = now;
+      recFrame();
+    }, 40);
   rec.clock = setInterval(updateRecUI, 500);
   updateRecUI();
   sendState();
   const seers = isHost ? (cohosts.size ? "your co-hosts" : "") : "the host and co-hosts";
-  toast(seers ? "Recording — only " + seers + " can see that you're recording" : "Recording — it's saved to your device when you stop");
+  const what = soundOnly ? "Recording sound" : "Recording";
+  toast(seers ? what + " — only " + seers + " can see that you're recording" : what + " — it's saved to your device when you stop");
 }
 function stopRecording() {
   if (!rec.on) return;
@@ -2729,7 +2790,8 @@ function stopRecording() {
   if (!left) sendState();
 }
 function recSave() {
-  const chunks = rec.chunks, type = (rec.mr && rec.mr.mimeType) || rec.type || "video/webm";
+  const soundOnly = rec.kind === "audio";
+  const chunks = rec.chunks, type = (rec.mr && rec.mr.mimeType) || rec.type || (soundOnly ? "audio/webm" : "video/webm");
   rec.chunks = [];
   recCleanup();
   if (!chunks.length) { toast("Nothing was recorded"); return; }
@@ -2737,8 +2799,8 @@ function recSave() {
   const d = new Date(), two = n => String(n).padStart(2, "0");
   const a = document.createElement("a");
   a.href = url;
-  a.download = `call-recording-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}-${two(d.getMinutes())}.` +
-               (type.includes("mp4") ? "mp4" : "webm");
+  const ext = soundOnly ? (type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm") : (type.includes("mp4") ? "mp4" : "webm");
+  a.download = `${soundOnly ? "audio" : "call"}-recording-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}-${two(d.getMinutes())}.${ext}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -2760,7 +2822,7 @@ function updateRecUI() {
   $("recBtn").title = rec.on ? "Stop recording and save the file" : "Record the call (saved to your device)";
   if (rec.on) {
     const s = Math.floor((Date.now() - rec.started) / 1000);
-    pill.textContent = "● REC " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    pill.textContent = "● REC " + (rec.kind === "audio" ? "🎙️ " : "") + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   } else {
     const who = seeRec() ? [...pstate].filter(([id, st]) => st.rec && calls.has(id)).map(([id]) => nameOf(id)) : [];
     pill.textContent = who.length ? "● " + who.join(", ") + (who.length > 1 ? " are" : " is") + " recording" : "";
@@ -2769,7 +2831,13 @@ function updateRecUI() {
   updateLocalTile();
   updateMoreBtn();
 }
-$("recBtn").onclick = () => rec.on ? stopRecording() : startRecording();
+// Record: in an audio call it records the sound straight away; in a video call it asks "video or sound only?"
+$("recBtn").onclick = () => {
+  if (rec.on) stopRecording();
+  else if (audioCall) startRecording("audio");
+  else openPop("recPop", $("recBtn"));
+};
+for (const b of $("recPop").children) b.onclick = () => { closePops(); startRecording(b.dataset.k); };
 // Closing the tab would lose the recording, so the browser asks first. On phones it also asks
 // before the page closes mid-call — a safety net in case a back press ever slips past the guard.
 addEventListener("beforeunload", e => {
@@ -2824,7 +2892,7 @@ for (const el of CTL_ORDER) moreWatch.observe(el, { attributes: true, attributeF
 addEventListener("resize", arrangeControls);
 
 // Small pop-up panels (reactions, filters) open above their button, or above ⋯ if the button is in the menu.
-const POPS = ["reactPop", "filterPop", "ccPop"];
+const POPS = ["reactPop", "filterPop", "ccPop", "recPop"];
 function openPop(id, btn) {
   const inMenu = !!btn.closest("#moreMenu");
   const pop = $(id), wasOpen = !pop.classList.contains("hidden");
@@ -2839,7 +2907,7 @@ function openPop(id, btn) {
 function closePops() { for (const id of POPS) $(id).classList.add("hidden"); }
 document.addEventListener("pointerdown", e => {
   if (!$("moreMenu").classList.contains("hidden") && !e.target.closest("#moreMenu, #moreBtn")) closeMore();
-  if (!e.target.closest(".pop, #reactBtn, #filterBtn, #ccBtn")) closePops();
+  if (!e.target.closest(".pop, #reactBtn, #filterBtn, #ccBtn, #recBtn")) closePops();
 });
 addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
@@ -4160,16 +4228,19 @@ addEventListener("blur", pttUp);            // switched windows while holding Sp
 document.addEventListener("visibilitychange", () => { if (document.hidden) pttUp(); });
 
 // A small sheet for the shortcut list and the iPhone install steps.
-function showInfo(title, build, okText) {
+function showInfo(title, build, okText, onOk) {
   $("infoTitle").textContent = title;
   $("infoOk").textContent = okText || "Got it";
+  $("infoOk").onclick = () => { hideInfo(); if (onOk) onOk(); };
   const body = $("infoBody");
   body.textContent = "";
   build(body);
   $("infoSheet").classList.remove("hidden");
 }
-function hideInfo() { $("infoSheet").classList.add("hidden"); }
-$("infoOk").onclick = hideInfo;
+function hideInfo() {
+  $("infoSheet").classList.add("hidden");
+  if (installWaiting) { installWaiting = false; clearTimeout(installWaitT); }   // closed while waiting to install
+}
 $("infoSheet").onclick = e => { if (e.target === $("infoSheet")) hideInfo(); };
 function toggleKeys() {
   if (!$("infoSheet").classList.contains("hidden")) { hideInfo(); return; }
@@ -4192,20 +4263,65 @@ $("keysBtn").onclick = toggleKeys;
 // on an iPhone it's Share → Add to Home Screen.
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-let installEvt = null;
-// The button is always on the start screen (except inside the installed app itself). If the browser is
-// ready to install, tapping it opens the browser's own install prompt; otherwise it shows the steps for
-// this phone or computer. (Chrome only offers its prompt after a little use of the page, and browsers
-// inside WhatsApp/Instagram never do.)
+let installEvt = null, installDismissed = false, installWaitT = null, installWaiting = false;
+const pageOpenedAt = performance.now();
+// Browsers only let a website install itself through the browser's own install prompt. Chrome and Edge
+// make it available once you've tapped the page and spent about 30 seconds on it (counted over all your
+// visits), and never once the app is installed. So the button: installs in one tap when the prompt is
+// ready; if it's nearly ready, waits for it and then offers "Install now"; if the app is already
+// installed, says so; and otherwise shows the steps for this browser.
 function showInstall() { $("installBtn").classList.toggle("hidden", isStandalone()); }
-addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; showInstall(); });
-addEventListener("appinstalled", () => { installEvt = null; showInstall(); toast("Installed — open Video Call from your home screen"); });
+addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  installEvt = e;
+  showInstall();
+  if (installWaiting) installReady();
+});
+addEventListener("appinstalled", () => {
+  installEvt = null; installWaiting = false; clearTimeout(installWaitT);
+  hideInfo(); showInstall();
+  toast("Installed — open Video Call from your home screen");
+});
+async function promptInstall() {
+  const ev = installEvt;
+  if (!ev) return;
+  installEvt = null;
+  try {
+    await ev.prompt();
+    const choice = await ev.userChoice;
+    if (choice && choice.outcome === "dismissed") installDismissed = true;
+  } catch (e) { console.warn(e); }
+  showInstall();
+}
+function infoText(body, lines) { for (const t of lines) { const p = document.createElement("p"); p.textContent = t; body.appendChild(p); } }
+function installReady() {                  // the browser's prompt arrived while we were waiting
+  installWaiting = false; clearTimeout(installWaitT);
+  showInfo("Ready to install", body => infoText(body, ["Tap Install now, then Install in the box that pops up."]),
+           "Install now", promptInstall);
+}
+function waitForInstall() {
+  installWaiting = true;
+  const left = () => Math.max(0, Math.ceil(30 - (performance.now() - pageOpenedAt) / 1000));
+  showInfo("Getting the app ready…", body => {
+    infoText(body, ["Your browser lets you install once you've been on this page for about 30 seconds. Keep it open — it's nearly ready."]);
+    const t = document.createElement("p"); t.id = "installCount"; t.style.fontWeight = "600"; body.appendChild(t);
+    const tick = () => { if (!installWaiting) return; const n = left(); t.textContent = n ? "About " + n + " seconds…" : "Almost there…"; setTimeout(tick, 1000); };
+    tick();
+  }, "Cancel", () => { installWaiting = false; clearTimeout(installWaitT); });
+  clearTimeout(installWaitT);
+  installWaitT = setTimeout(() => {        // still nothing: the browser won't offer it here, so show the steps
+    if (!installWaiting) return;
+    installWaiting = false;
+    showInstallSteps();
+  }, (left() + 12) * 1000);
+}
 function installSteps() {
   const ua = navigator.userAgent;
   const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Snapchat|; wv\)/i.test(ua);
   const android = /Android/i.test(ua), samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua);
   const edge = /Edg\//i.test(ua), chrome = /Chrome|CriOS/i.test(ua) && !edge && !samsung;
   if (isIOS) return ["Install on iPhone or iPad", [
+    "iPhones don't let websites install themselves, so it takes two taps:",
     "1. Tap the Share button (the square with an arrow pointing up). In Safari it's at the bottom; in Chrome it's at the top.",
     "2. Scroll down and choose “Add to Home Screen”, then tap Add."]];
   if (inApp) return ["Open it in your browser first", [
@@ -4226,22 +4342,25 @@ function installSteps() {
     "2. Open the ⋮ menu → “Cast, save, and share” → “Install page as app”."]];
   return ["Install the app", ["This browser can't install apps. Open the link in Chrome or Edge (or Safari on an iPhone) and tap “Install as an app” there."], true];
 }
-$("installBtn").onclick = async () => {
-  if (installEvt) {                        // the browser's own install prompt
-    const ev = installEvt;
-    installEvt = null;
-    try { await ev.prompt(); await ev.userChoice; } catch (e) {}
-    showInstall();
-    return;
-  }
+function showInstallSteps() {
   const [title, steps, noInstall] = installSteps();
   const after = noInstall ? [] : ["Video Call then opens from its own purple icon on your home screen, like an app.",
                                   "Already installed? Just open it from that icon."];
-  showInfo(title, body => {
-    for (const t of [...steps, ...after]) {
-      const p = document.createElement("p"); p.textContent = t; body.appendChild(p);
+  showInfo(title, body => infoText(body, [...steps, ...after]));
+}
+$("installBtn").onclick = async () => {
+  if (installEvt) { promptInstall(); return; }          // one tap: the browser's own install box
+  try {                                                 // already installed on this device?
+    const apps = navigator.getInstalledRelatedApps ? await navigator.getInstalledRelatedApps() : [];
+    if (apps && apps.length) {
+      showInfo("Already installed", body => infoText(body, ["Video Call is already on this device. Open it from its purple icon on your home screen (or app list)."]));
+      return;
     }
-  });
+  } catch (e) {}
+  const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Snapchat|; wv\)/i.test(navigator.userAgent);
+  // Chrome, Edge and Samsung Internet have an install prompt; wait for it unless it was just turned down.
+  if ("onbeforeinstallprompt" in window && !inApp && !installDismissed && (location.protocol === "https:" || location.hostname === "localhost")) waitForInstall();
+  else showInstallSteps();
 };
 showInstall();
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
