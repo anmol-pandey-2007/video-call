@@ -267,6 +267,21 @@
                                           font-weight: 600; text-decoration: none; font-size: 14px; }
   #copyTop { display: none; align-items: center; gap: 5px; background: var(--panel); }
   #copyTop svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .tag.rect { background: var(--danger); color: #fff; }
+
+  /* ---------- "Leave the call?" sheet (what the back button opens) ---------- */
+  #leaveSheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+                padding: 16px; background: rgba(20, 14, 36, .55); }
+  #leaveSheet.hidden { display: none; }
+  .sheet { width: min(360px, 100%); background: var(--panel); border-radius: 20px; padding: 20px;
+           box-shadow: 0 20px 50px rgba(20, 14, 36, .4); animation: pop .18s ease-out; }
+  .sheet h2 { font-size: 18px; margin: 0 0 6px; }
+  .sheet p { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .sheet button { display: block; width: 100%; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 15px; }
+  .sheet button + button { margin-top: 8px; }
+  .sheet .stay { background: var(--accent); color: #fff; }
+  .sheet .go { background: var(--panel2); color: var(--danger); }
+  .sheet .end { background: var(--danger); color: #fff; }
 
   @media (max-width: 1500px) {             /* below very wide screens: icons only (labels show on hover) */
     .ctl:not(.leave) .lbl { display: none; }
@@ -289,6 +304,7 @@
     .tile .avatar span { width: 60px; height: 60px; font-size: 24px; }
     #chat, #people { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
     #topbar .title { display: none; }
+    #leaveSheet { align-items: flex-end; }       /* a sheet that slides up from the bottom on phones */
   }
   @media (max-width: 370px) {
     .ctl, .ctl.icon, .ctl:not(.leave) { width: 36px; min-width: 36px; height: 36px; }
@@ -368,7 +384,7 @@
     </div>
     <div id="handHelp" class="hidden">☝️ Index finger up = draw · ✌️ Two fingers up = move without drawing · 🖐️ Hold open palm = clear</div>
     <div id="controls">
-      <button class="ctl icon" id="mic" title="Microphone">
+      <button class="ctl icon" id="mic" title="Mute your microphone">
         <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
       <button class="ctl icon" id="cam" title="Camera">
@@ -450,6 +466,15 @@
   <img id="viewerImg" alt="">
   <div class="vbar"><a id="viewerDl" href="#" download>Download</a><button id="viewerClose">Close</button></div>
 </div>
+<div id="leaveSheet" class="hidden">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="leaveTitle">
+    <h2 id="leaveTitle">Leave the call?</h2>
+    <p id="leaveText">You're still in the call.</p>
+    <button class="stay" id="leaveStay">Stay in the call</button>
+    <button class="go" id="leaveGo">Leave call</button>
+    <button class="end hidden" id="leaveEnd">End call for everyone</button>
+  </div>
+</div>
 
 <script>
 /* Group Video Call — © 2026 Anmol Pandey. All rights reserved. */
@@ -458,8 +483,10 @@ const MAX_PEOPLE = 6;   // everyone connects directly to everyone, so keep group
 const VIDEO = { width: { ideal: 1280 }, height: { ideal: 720 } };   // ask the camera for HD
 
 // The room code lives in the URL (#abc123), so the link itself is the invite.
-if (!location.hash) location.hash = Math.random().toString(36).slice(2, 10);
+// replaceState (not location.hash = ...) so making the code doesn't add an extra step to the back button.
+if (!location.hash) history.replaceState(history.state, "", location.href.split("#")[0] + "#" + Math.random().toString(36).slice(2, 10));
 const ROOM = location.hash.slice(1);
+const INVITE = location.href.split("#")[0] + "#" + ROOM;
 // One person at a time holds this fixed ID and is the HOST: they approve who joins
 // and tell each newcomer who is already in the call.
 const LOBBY_ID = "ap-group-call-v2-" + ROOM;
@@ -623,7 +650,7 @@ function renderPeer(id) {
   const stream = tile.querySelector("video").srcObject;
   const hasVideo = !!stream && stream.getVideoTracks().length > 0;
   // Someone drawing with their camera off still sends a picture (their drawing board).
-  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing || st.drawing), mic: st.mic, sharing: st.sharing, recording: st.rec, hand: st.hand }
+  paintTile(tile, st ? { video: hasVideo && (st.cam || st.sharing || st.drawing), mic: st.mic, sharing: st.sharing, recording: st.rec && seeRec(), hand: st.hand }
                      : { video: hasVideo, mic: true, sharing: false, recording: false, hand: false });
 }
 function rearCam() {
@@ -683,14 +710,21 @@ function blackTrack() {            // stand-in picture for people with no camera
 }
 
 /* ---------------- status + chat links between people ---------------- */
-function myState() { return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: rec.on, hand: myHand }; }
+// My status, as sent to one person. Only the host and co-hosts are told that I'm recording.
+function myState(to) {
+  const showRec = rec.on && !!to && (to === hostId || cohosts.has(to));
+  return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: showRec, hand: myHand };
+}
 function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
-function sendState() { broadcast(myState()); updateLocalTile(); renderPeople(); }
+function sendState() {
+  for (const [id, c] of peerConns) if (c.open) try { c.send(myState(id)); } catch (e) {}
+  updateLocalTile(); renderPeople();
+}
 
 function wireConn(id, conn, dataAlreadyWired) {
   const onOpen = () => {
     peerConns.set(id, conn);
-    try { conn.send(myState()); } catch (e) {}
+    try { conn.send(myState(id)); } catch (e) {}
     wbSync(conn);                        // give them the whiteboard as I have it
     refreshRecipients();
   };
@@ -710,9 +744,9 @@ function onPeerMsg(id, msg) {
     if (now.hand && !hands.has(id)) { hands.set(id, Date.now()); toast(nameOf(id) + " raised their hand ✋"); }
     if (!now.hand && hands.has(id)) hands.delete(id);
     renderHands();
-    // Everyone is told when someone records the call.
-    if (now.rec && !(before && before.rec)) toast(nameOf(id) + " is recording this call");
-    if (!now.rec && before && before.rec) toast(nameOf(id) + " stopped recording");
+    // Only the host and co-hosts are told when someone records the call.
+    if (seeRec() && now.rec && !(before && before.rec)) toast(nameOf(id) + " is recording this call");
+    if (seeRec() && !now.rec && before && before.rec) toast(nameOf(id) + " stopped recording");
     updateRecUI();
     // Put a shared screen in the big slot automatically.
     if (now.sharing && !(before && before.sharing) && (!pinnedId || autoPinned)) { pinnedId = id; autoPinned = true; layout(); toast(nameOf(id) + " is sharing their screen"); }
@@ -861,19 +895,20 @@ function removeKnock(id, conn) {
   knocks.delete(id);
   sendKnocksAll();
 }
-function knockCard(name, onYes, onNo) {
+// A card in the top corner with two buttons (join requests, "please unmute").
+function knockCard(name, onYes, onNo, rest = " wants to join", yesText = "Admit", noText = "Deny") {
   const el = document.createElement("div");
   el.className = "knock";
   const text = document.createElement("div");
   const b = document.createElement("b");
   b.textContent = name;
-  text.append(b, " wants to join");
+  text.append(b, rest);
   const row = document.createElement("div");
   row.className = "row";
   const yes = document.createElement("button");
-  yes.className = "yes"; yes.textContent = "Admit";
+  yes.className = "yes"; yes.textContent = yesText;
   const no = document.createElement("button");
-  no.className = "no"; no.textContent = "Deny";
+  no.className = "no"; no.textContent = noText;
   yes.onclick = onYes;
   no.onclick = onNo;
   row.append(yes, no);
@@ -893,6 +928,7 @@ function addKnock(conn, name) {
 /* ---- roles: the host decides who's co-host. Host commands travel only over the link to the
    host's fixed room ID, which nobody else can own, so they can't be faked by other people. ---- */
 function amCohost() { return !!myId && !isHost && cohosts.has(myId); }
+function seeRec() { return isHost || amCohost(); }      // who gets to know that someone is recording
 const rolesMsg = () => ({ type: "roles", host: myId, cohosts: [...cohosts] });
 function sendRoles() {
   if (!isHost) return;
@@ -913,6 +949,11 @@ function rolesChanged() {
   renderPeople();
   if (!isHost && !amCohost()) showCoKnocks([]);
   sendKnocksAll();
+  // Who may see recordings has changed: tell the new host/co-hosts if I'm recording (and stop telling
+  // anyone who lost the role), and show or hide other people's recording badges for me.
+  if (rec.on) sendState();
+  for (const id of calls.keys()) renderPeer(id);
+  updateRecUI();
 }
 function paintRoles() {
   for (const tile of $("grid").children) {
@@ -936,7 +977,7 @@ function request(action, target) {
   if (isHost) hostAct(action, target, myId);
   else if (lobbyConn && lobbyConn.open) try { lobbyConn.send({ type: "req", action, target }); } catch (e) {}
 }
-const COHOST_CAN = new Set(["mute", "lowerhand", "remove", "muteall", "admit", "deny"]);
+const COHOST_CAN = new Set(["mute", "askunmute", "lowerhand", "remove", "muteall", "admit", "deny"]);
 function hostAct(action, target, by) {
   if (!isHost) return;
   const boss = by === myId;
@@ -960,7 +1001,7 @@ function hostAct(action, target, by) {
   }
   if (typeof target !== "string" || target === myId || !calls.has(target)) return;   // nobody acts on the host
   if (!boss && cohosts.has(target) && action === "remove") return;                    // co-hosts can't remove co-hosts
-  if (action === "mute" || action === "lowerhand") tell(target, { type: "cmd", cmd: action, by: byName });
+  if (action === "mute" || action === "askunmute" || action === "lowerhand") tell(target, { type: "cmd", cmd: action, by: byName });
   else if (action === "remove") removePerson(target, byName);
   else if (boss && (action === "cohost" || action === "uncohost")) {
     if (action === "cohost") cohosts.add(target);
@@ -1004,13 +1045,9 @@ function transferHost(target) {
 function handleCmd(msg) {
   const by = msg.by ? clean(msg.by) : "The host";
   if (msg.cmd === "mute") {
-    const t = localStream && localStream.getAudioTracks()[0];
-    if (t && t.enabled) {
-      t.enabled = false;
-      $("mic").classList.add("off");
-      sendState();
-      toast(by + " muted you — you can unmute yourself");
-    }
+    if (micOn()) { setMic(false); toast(by + " muted you — tap the mic to unmute"); }
+  } else if (msg.cmd === "askunmute") {
+    askedToUnmute(by);
   } else if (msg.cmd === "lowerhand") {
     if (myHand) { setHand(false, true); toast(by + " lowered your hand"); }
   } else if (msg.cmd === "remove") {
@@ -1022,6 +1059,23 @@ function handleCmd(msg) {
     toast(by + " made you the host");
     scheduleLobby(450);                               // take the host's room ID once it's free
   }
+}
+
+// The host or a co-host asks me to unmute. Nobody can switch my mic on for me: I get a card with an Unmute button.
+let unmuteCard = null;
+function closeUnmuteCard() {
+  if (!unmuteCard) return;
+  clearTimeout(unmuteCard.timer);
+  unmuteCard.remove();
+  unmuteCard = null;
+}
+function askedToUnmute(by) {
+  if (micOn() || !localStream || !localStream.getAudioTracks()[0]) return;
+  closeUnmuteCard();
+  unmuteCard = knockCard(by, () => { closeUnmuteCard(); setMic(true); }, closeUnmuteCard,
+                         " is asking you to unmute", "Unmute", "Stay muted");
+  unmuteCard.timer = setTimeout(closeUnmuteCard, 30000);
+  toast(by + " is asking you to unmute");
 }
 
 // Join requests, shown to co-hosts too. Their Admit/Deny goes to the host, who does it.
@@ -1224,6 +1278,7 @@ function requestJoin() {
   $("joinBtn").disabled = true;
   $("joinBtn").textContent = "Connecting…";
   $("nameInput").disabled = true;
+  armBack();                               // from now on, back asks before leaving
   startPeer();
 }
 
@@ -1251,6 +1306,7 @@ function enterCallUI() {
   refreshCams();
   layout();
   arrangeControls();
+  armBack();
 }
 
 function leaveCall(message) {
@@ -1270,6 +1326,9 @@ function leaveCall(message) {
   pipeUpdate(true);
   stopGestures();
   closePops();
+  hideLeaveSheet();
+  closeUnmuteCard();
+  dropBackGuard();                         // back works normally again once I've left
   $("people").classList.add("hidden");
   $("viewer").classList.add("hidden");
   for (const el of coKnocks.values()) el.remove();
@@ -1290,13 +1349,16 @@ function leaveCall(message) {
 }
 
 /* ---------------- mic / camera / switch camera ---------------- */
-$("mic").onclick = () => {
-  const t = localStream.getAudioTracks()[0];
+function setMic(on) {
+  const t = localStream && localStream.getAudioTracks()[0];
   if (!t) return;
-  t.enabled = !t.enabled;
-  $("mic").classList.toggle("off", !t.enabled);
+  t.enabled = on;
+  $("mic").classList.toggle("off", !on);
+  $("mic").title = on ? "Mute your microphone" : "Unmute your microphone";
+  if (on) closeUnmuteCard();
   sendState();
-};
+}
+$("mic").onclick = () => setMic(!micOn());
 $("cam").onclick = () => {
   const t = localStream.getVideoTracks()[0];
   if (!t || placeholderCam) return;
@@ -2136,7 +2198,8 @@ function wbSync(conn) {
 /* ---------------- recording the call (saved to this device) ---------------- */
 // Draws the call into a hidden canvas (everyone's video, the whiteboard, drawings, names), mixes
 // everyone's sound, and records both with the browser's MediaRecorder. Nothing is uploaded:
-// the file is saved to this device when recording stops. Everyone in the call can see who's recording.
+// the file is saved to this device when recording stops. Anyone can record; only the host and
+// co-hosts are told who's recording.
 const REC_W = 1280, REC_H = 720;
 const rec = {
   on: false, canvas: null, g: null, mr: null, chunks: [], type: "",
@@ -2312,7 +2375,8 @@ async function startRecording() {
   rec.clock = setInterval(updateRecUI, 500);
   updateRecUI();
   sendState();
-  toast("Recording — everyone in the call can see that you're recording");
+  const seers = isHost ? (cohosts.size ? "your co-hosts" : "") : "the host and co-hosts";
+  toast(seers ? "Recording — only " + seers + " can see that you're recording" : "Recording — it's saved to your device when you stop");
 }
 function stopRecording() {
   if (!rec.on) return;
@@ -2358,7 +2422,7 @@ function updateRecUI() {
     const s = Math.floor((Date.now() - rec.started) / 1000);
     pill.textContent = "● REC " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   } else {
-    const who = [...pstate].filter(([id, st]) => st.rec && calls.has(id)).map(([id]) => nameOf(id));
+    const who = seeRec() ? [...pstate].filter(([id, st]) => st.rec && calls.has(id)).map(([id]) => nameOf(id)) : [];
     pill.textContent = who.length ? "● " + who.join(", ") + (who.length > 1 ? " are" : " is") + " recording" : "";
   }
   pill.classList.toggle("hidden", !pill.textContent);
@@ -2366,8 +2430,12 @@ function updateRecUI() {
   updateMoreBtn();
 }
 $("recBtn").onclick = () => rec.on ? stopRecording() : startRecording();
-// Closing the tab would lose the recording, so the browser asks first.
-addEventListener("beforeunload", e => { if (rec.on) { e.preventDefault(); e.returnValue = ""; } });
+// Closing the tab would lose the recording, so the browser asks first. On phones it also asks
+// before the page closes mid-call — a safety net in case a back press ever slips past the guard.
+addEventListener("beforeunload", e => {
+  const phoneInCall = inCall && !left && matchMedia("(pointer: coarse)").matches;
+  if (rec.on || phoneInCall) { e.preventDefault(); e.returnValue = ""; }
+});
 
 /* ---------------- the button bar: whatever doesn't fit on one row goes in the ⋯ menu ---------------- */
 const CTL_ORDER = [...$("controls").children];                    // the bar's normal order
@@ -2435,7 +2503,7 @@ document.addEventListener("pointerdown", e => {
 });
 addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
-  closePops(); closeMore();
+  closePops(); closeMore(); hideLeaveSheet();
   $("viewer").classList.add("hidden");
 });
 
@@ -2778,6 +2846,8 @@ function renderPeople() {
     const hi = order.indexOf(r.key);
     if (hi >= 0) tag("✋ " + (hi + 1), "hand");
     if (!r.mic) tag("Muted", "mutedt");
+    const recNow = r.key === "me" ? rec.on : seeRec() && !!(pstate.get(r.key) || {}).rec;
+    if (recNow) tag("● Recording", "rect");                // only the host and co-hosts see this for others
     const q = r.key === "me" ? myQuality : quality.get(r.key);
     if (q) { const bars = document.createElement("span"); bars.innerHTML = "<i></i><i></i><i></i><i></i>"; paintBars(bars, q, r.key === "me"); tags.appendChild(bars); }
     main.append(nm, tags);
@@ -2799,6 +2869,7 @@ function renderPeople() {
         acts.appendChild(b);
       };
       if (r.mic) btn("Mute", "mute");
+      else btn("Ask to unmute", "askunmute");
       if (hi >= 0) btn("Lower hand", "lowerhand");
       if (isHost) btn(cohosts.has(r.id) ? "Remove co-host" : "Make co-host", cohosts.has(r.id) ? "uncohost" : "cohost");
       if (isHost) btn("Make host", "makehost", false, true);
@@ -3024,14 +3095,20 @@ $("chatForm").onsubmit = e => {
 
 /* ---------------- other buttons ---------------- */
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(location.href); toast("Invite link copied"); }
-  catch (e) { prompt("Copy this link:", location.href); }
+  try { await navigator.clipboard.writeText(INVITE); toast("Invite link copied"); }
+  catch (e) { prompt("Copy this link:", INVITE); }
 };
 $("copyTop").onclick = () => $("copy").click();
 $("leave").onclick = () => leaveCall();
 
 // Host only: end the call for everyone. Needs a second click so it can't happen by accident.
 let endArmed = null;
+function endForAll() {
+  if (!isHost || left) return;
+  broadcast({ t: "end" });
+  for (const k of knocks.values()) try { k.conn.send({ type: "ended" }); } catch (e) {}
+  setTimeout(() => leaveCall("You ended the call for everyone."), 300);
+}
 $("endAll").onclick = () => {
   if (!isHost) return;
   if (!endArmed) {
@@ -3041,10 +3118,58 @@ $("endAll").onclick = () => {
     return;
   }
   clearTimeout(endArmed); endArmed = null;
-  broadcast({ t: "end" });
-  for (const k of knocks.values()) try { k.conn.send({ type: "ended" }); } catch (e) {}
-  setTimeout(() => leaveCall("You ended the call for everyone."), 300);
+  endForAll();
 };
+
+/* ---------------- phone back button: it never takes you out of the call ---------------- */
+// Once I've pressed Join, an extra step sits on top of the browser history. Pressing (or swiping)
+// back lands on that step instead of leaving the page. Back then closes whatever is open — a picture,
+// a pop-up, chat, the People list — and if nothing is open it asks "Leave the call?". Leaving only
+// ever happens from a button.
+let backGuard = false;
+function armBack() {
+  if (backGuard || left) return;
+  try { history.pushState({ gvcGuard: true }, "", location.href); backGuard = true; } catch (e) {}
+}
+function dropBackGuard() {
+  if (!backGuard) return;
+  backGuard = false;
+  try { history.back(); } catch (e) {}
+}
+addEventListener("popstate", () => {
+  if (!backGuard) return;                  // not mine (or I've already left)
+  backGuard = false;
+  if (left) return;
+  armBack();                               // put the step back straight away, ready for the next press
+  if (!closeTopmost()) showLeaveSheet();
+});
+function closeTopmost() {
+  if (!$("leaveSheet").classList.contains("hidden")) { hideLeaveSheet(); return true; }   // back again = stay
+  if (!$("viewer").classList.contains("hidden")) { $("viewer").classList.add("hidden"); return true; }
+  if (POPS.some(id => !$(id).classList.contains("hidden")) || !$("moreMenu").classList.contains("hidden")) {
+    closePops(); closeMore(); return true;
+  }
+  if (chatOpen) { toggleChat(false); return true; }
+  if (peopleOpen) { togglePeople(false); return true; }
+  if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return true; }
+  return false;
+}
+function showLeaveSheet() {
+  closePops(); closeMore();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // put the phone keyboard away
+  $("leaveTitle").textContent = inCall ? "Leave the call?" : "Stop joining?";
+  $("leaveText").textContent = !inCall ? "You're still waiting for the host to let you in."
+    : rec.on ? "You're still in the call. Leaving stops your recording and saves it to your device."
+    : "You're still in the call — pressing back doesn't take you out.";
+  $("leaveGo").textContent = inCall ? "Leave call" : "Stop joining";
+  $("leaveEnd").classList.toggle("hidden", !(inCall && isHost));
+  $("leaveSheet").classList.remove("hidden");
+}
+function hideLeaveSheet() { $("leaveSheet").classList.add("hidden"); }
+$("leaveStay").onclick = hideLeaveSheet;
+$("leaveGo").onclick = () => { const was = inCall; hideLeaveSheet(); leaveCall(was ? undefined : "You stopped joining."); };
+$("leaveEnd").onclick = () => { hideLeaveSheet(); endForAll(); };
+$("leaveSheet").onclick = e => { if (e.target === $("leaveSheet")) hideLeaveSheet(); };   // tap outside = stay
 $("joinBtn").onclick = requestJoin;
 $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("joinBtn").disabled) $("joinBtn").click(); });
 
