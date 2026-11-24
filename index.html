@@ -59,6 +59,37 @@
              font-size: 15px; background: linear-gradient(135deg, var(--accent2), var(--accent)); }
   .primary:disabled { opacity: .55; cursor: not-allowed; }
   .primary:not(:disabled):hover { filter: brightness(1.06); }
+  .ghost { width: 100%; margin-top: 8px; padding: 12px; border-radius: 11px; font-weight: 600; font-size: 15px;
+           background: var(--panel2); color: var(--accent); border: 1px solid var(--accent2); }
+  .textBtn { display: block; margin: 12px auto 0; background: none; color: var(--accent); font-size: 14px;
+             text-decoration: underline; }
+  #linkInfo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px;
+              padding: 10px 13px; border-radius: 11px; background: var(--panel2); border: 1px dashed var(--accent2); font-size: 14px; }
+  #linkInfo span { color: var(--muted); }
+  #linkInfo b { letter-spacing: .5px; font-size: 15px; }
+  #linkInfo.hidden { display: none; }
+  .or { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px; color: var(--muted); font-size: 13px; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  /* the meeting ID: one box per letter, in groups of 3-4-3 */
+  .idBoxes { display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .idBoxes .idBox { flex: 1 1 0; min-width: 0; max-width: 38px; height: 46px; padding: 0; text-align: center;
+                    font-size: 20px; font-weight: 700; text-transform: lowercase; border-radius: 9px;
+                    border: 1px solid var(--line); background: var(--panel2); color: var(--text); caret-color: var(--accent); }
+  .idBoxes .idBox:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(132, 99, 216, .2); }
+  .idBoxes .idBox.filled { background: #fff; border-color: var(--accent2); }
+  .idDash { flex: none; color: var(--muted); font-weight: 700; padding: 0 1px; }
+  .idHint { font-size: 12px; color: var(--muted); text-align: center; margin-top: 7px; }
+  #roomJoin { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 11px; background: var(--accent);
+              color: #fff; font-weight: 600; font-size: 15px; }
+  #roomJoin:disabled { opacity: .45; cursor: not-allowed; }
+  .inviteId { display: flex; justify-content: center; align-items: center; gap: 4px; margin: 4px 0 14px; }
+  .inviteId span { flex: 1 1 0; min-width: 0; max-width: 30px; height: 40px; display: grid; place-items: center;
+                   border-radius: 8px; background: var(--panel2); border: 1px solid var(--accent2);
+                   font-size: 19px; font-weight: 700; color: var(--accent); }
+  .inviteId i { font-style: normal; font-weight: 700; color: var(--muted); }
+  .inviteId.plainId { font-size: 24px; font-weight: 700; color: var(--accent); }
+  #idPill { display: none; }
+  @media (min-width: 900px) { #idPill { display: inline-flex; } }
 
   /* ---------- Call screen ---------- */
   #call { height: 100dvh; display: flex; flex-direction: column; }
@@ -331,6 +362,7 @@
   .sheet .stay { background: var(--accent); color: #fff; }
   .sheet .go { background: var(--panel2); color: var(--danger); }
   .sheet .end { background: var(--danger); color: #fff; }
+  .sheet .plain { background: var(--panel2); color: var(--accent); }
 
   @media (max-width: 1500px) {             /* below very wide screens: icons only (labels show on hover) */
     .ctl:not(.leave) .lbl { display: none; }
@@ -354,8 +386,15 @@
     #chat, #people { position: fixed; inset: 0; width: auto; z-index: 20; border-radius: 0; border: 0; }
     #topbar .title { display: none; }
     #leaveSheet, #infoSheet { align-items: flex-end; }   /* sheets slide up from the bottom on phones */
+    .idBoxes { gap: 3px; }
+    .idBoxes .idBox { height: 42px; font-size: 18px; border-radius: 8px; }
+    .inviteId { gap: 3px; }
     .cap { font-size: 15px; padding: 7px 10px; }
     #captions { bottom: 8px; }
+  }
+  @media (max-width: 400px) {              /* small phones: give the 10 ID boxes more room */
+    #join { padding: 12px; }
+    .card { padding: 16px; }
   }
   @media (max-width: 370px) {
     .ctl, .ctl.icon, .ctl:not(.leave) { width: 36px; min-width: 36px; height: 36px; }
@@ -371,14 +410,23 @@
       <div class="logo"><svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg></div>
       <h1>Group Video Call</h1>
     </div>
-    <p class="sub" id="joinSub">Check your camera, enter your name, and join.</p>
+    <p class="sub" id="joinSub">Check your camera, enter your name, then start a new meeting or join one.</p>
     <div id="previewWrap">
       <video id="preview" autoplay playsinline muted></video>
       <div id="previewMsg">Starting camera…</div>
     </div>
     <label for="nameInput" id="nameLabel">Your name</label>
     <input type="text" id="nameInput" maxlength="24" placeholder="e.g. Anmol" autocomplete="off">
-    <button class="primary" id="joinBtn" disabled>Join call</button>
+    <div id="linkInfo" class="hidden"><span>Meeting ID</span><b id="linkId"></b></div>
+    <button class="primary" id="joinBtn" disabled>New meeting</button>
+    <button class="ghost hidden" id="startNow">Start this meeting now</button>
+    <div id="joinById">
+      <div class="or"><span>or join with a meeting ID</span></div>
+      <div class="idBoxes" id="idBoxes" role="group" aria-label="Meeting ID, 10 letters"></div>
+      <div class="idHint">Type the 10 letters, or paste the ID or invite link</div>
+      <button id="roomJoin" disabled>Join</button>
+    </div>
+    <button class="textBtn hidden" id="newInstead">Start a new meeting instead</button>
   </div>
   <button class="install hidden" id="installBtn">📲 Install as an app</button>
   <div class="copyright">© 2026 Anmol Pandey<span class="more hidden"> &amp; Ananya Tripathi</span>. All rights reserved.<button class="know">Know more</button></div>
@@ -394,8 +442,9 @@
     <span class="pill hidden" id="pttPill">🎙️ Talking</span>
     <span class="pill hidden" id="ccPill" title="Your speech is being turned into captions for people who switched captions on">CC</span>
     <span id="status"></span>
+    <button class="pill" id="idPill" title="Meeting ID — click to copy"></button>
     <button class="pill" id="keysBtn" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
-    <button class="pill" id="copyTop" title="Copy invite link">
+    <button class="pill" id="copyTop" title="Invite people (I)">
       <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Invite
     </button>
   </div>
@@ -494,7 +543,7 @@
         <span class="lbl">People</span>
         <span id="handCount" class="cnt hidden">0</span>
       </button>
-      <button class="ctl" id="copy" title="Copy invite link">
+      <button class="ctl" id="copy" title="Invite people (I)">
         <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
         <span class="lbl">Invite</span>
       </button>
@@ -565,14 +614,38 @@ const $ = id => document.getElementById(id);
 const MAX_PEOPLE = 6;   // everyone connects directly to everyone, so keep groups small
 const VIDEO = { width: { ideal: 1280 }, height: { ideal: 720 } };   // ask the camera for HD
 
-// The room code lives in the URL (#abc123), so the link itself is the invite.
-// replaceState (not location.hash = ...) so making the code doesn't add an extra step to the back button.
-if (!location.hash) history.replaceState(history.state, "", location.href.split("#")[0] + "#" + Math.random().toString(36).slice(2, 10));
-const ROOM = location.hash.slice(1);
-const INVITE = location.href.split("#")[0] + "#" + ROOM;
-// One person at a time holds this fixed ID and is the HOST: they approve who joins
+// Every meeting has an ID like abc-defg-hij. It lives in the URL (#abc-defg-hij), so the link itself is
+// the invite, and people can also type the ID in on the start screen. Dashes and capitals don't matter,
+// and older links (#k3j9x2ab) still work.
+// One person at a time holds the meeting's fixed lobby ID and is the HOST: they approve who joins
 // and tell each newcomer who is already in the call.
-const LOBBY_ID = "ap-group-call-v2-" + ROOM;
+let ROOM = "", INVITE = "", LOBBY_ID = "";
+const BASE_URL = location.href.split("#")[0];
+const roomKey = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const prettyRoom = k => /^[a-z]{10}$/.test(k) ? k.slice(0, 3) + "-" + k.slice(3, 7) + "-" + k.slice(7) : k;
+function newRoomCode() {                   // 10 letters, without l and o (easily misread)
+  const abc = "abcdefghijkmnpqrstuvwxyz", r = new Uint32Array(10);
+  crypto.getRandomValues(r);
+  return [...r].map(n => abc[n % abc.length]).join("");
+}
+// What someone typed or pasted: an ID with or without dashes, or a whole invite link.
+function parseRoom(text) {
+  let s = String(text || "").trim();
+  if (s.includes("#")) s = s.slice(s.lastIndexOf("#") + 1);
+  else if (/[/.:]/.test(s)) return "";     // a link without a meeting ID in it
+  const k = roomKey(s);
+  return k.length >= 4 && k.length <= 32 ? k : "";
+}
+function setRoom(key) {
+  ROOM = key;
+  LOBBY_ID = "ap-group-call-v2-" + key;
+  INVITE = key ? BASE_URL + "#" + prettyRoom(key) : "";
+  // replaceState, so choosing a meeting doesn't add an extra step to the back button
+  try { history.replaceState(history.state, "", key ? INVITE : BASE_URL); } catch (e) {}
+}
+setRoom(parseRoom(location.hash));         // opened from an invite link? then that's the meeting
+let joinMode = "start";                    // "start": opening a new meeting; "join": it should already be running
+let startWaitT = null;
 
 let myName = "", myId = null, left = false, inCall = false, isHost = false;
 let localStream = null;          // camera + mic
@@ -1254,6 +1327,8 @@ function askLobby() {
     if (lobbyConn !== conn || !msg) return;
     if (msg.type === "waiting") {
       answered = true;
+      clearTimeout(startWaitT);
+      $("startNow").classList.add("hidden");
       if (!inCall) { $("joinSub").textContent = "Asked to join. Waiting for the host to let you in…"; $("joinBtn").textContent = "Waiting for host…"; }
     } else if (msg.type === "ended") {
       leaveCall("The host ended the call.");
@@ -1288,27 +1363,48 @@ function askLobby() {
       layout();
     }
   });
-  // If the host goes away, someone in the call takes over.
+  // If the host goes away, someone in the call takes over. Someone still outside, joining by ID or link,
+  // doesn't grab the host seat: they wait and ask again (or tap "Start this meeting now").
   const lost = () => {
     if (lobbyConn !== conn || left) return;
     lobbyConn = null;
-    scheduleLobby(takeoverDelay());
+    if (!inCall && joinMode === "join") notStartedYet();
+    else scheduleLobby(takeoverDelay());
   };
   conn.on("close", lost);
   conn.on("error", lost);
 
   clearTimeout(lobbyWait);
   lobbyWait = setTimeout(() => {
-    if (lobbyConn === conn && !answered) { lobbyConn = null; try { conn.close(); } catch (e) {} scheduleLobby(0); }
+    if (lobbyConn !== conn || answered) return;
+    lobbyConn = null;
+    try { conn.close(); } catch (e) {}
+    if (!inCall && joinMode === "join") notStartedYet(); else scheduleLobby(0);
   }, 5000);
 }
+// Joining a meeting that nobody has started (or everyone has left): wait for it, asking again every few seconds.
+function notStartedYet() {
+  if (left || inCall) return;
+  clearTimeout(startWaitT);
+  $("joinSub").textContent = "This meeting hasn't started yet. You'll join as soon as the host starts it — or start it yourself.";
+  $("joinBtn").textContent = "Waiting for the host…";
+  $("startNow").classList.remove("hidden");
+  startWaitT = setTimeout(() => { if (!inCall && !left && joinMode === "join" && !lobbyConn) askLobby(); }, 4000);
+}
+$("startNow").onclick = () => {            // nobody's there: I'll be the host
+  clearTimeout(startWaitT);
+  joinMode = "start";
+  $("startNow").classList.add("hidden");
+  $("joinBtn").textContent = "Starting…";
+  enterLobby();                            // if the host turned up meanwhile, this just asks to join them
+};
 
 /* ---------------- my connection ---------------- */
 function startPeer() {
   if (left) return;
   const p = new Peer();
   me = p;
-  p.on("open", id => { myId = id; enterLobby(); });
+  p.on("open", id => { myId = id; if (joinMode === "join") askLobby(); else enterLobby(); });
   p.on("call", c => whenAllowed(c.peer, () => acceptCall(c), () => { try { c.close(); } catch (e) {} }));
   p.on("connection", conn => {
     const id = conn.peer, early = [];
@@ -1326,7 +1422,11 @@ function startPeer() {
     if (me !== p || left) return;
     const text = String(err.message || "");
     if (err.type === "peer-unavailable") {
-      if (text.includes(LOBBY_ID)) { lobbyConn = null; scheduleLobby(800 + Math.random() * 1200); }
+      if (text.includes(LOBBY_ID)) {       // nobody holds the host seat right now
+        lobbyConn = null;
+        if (!inCall && joinMode === "join") notStartedYet();
+        else scheduleLobby(800 + Math.random() * 1200);
+      }
       else for (const [id, c] of [...calls]) if (text.includes(id)) dropPeer(id, c);
       return;
     }
@@ -1361,7 +1461,94 @@ async function initPreview() {
     $("previewMsg").classList.add("hidden");
   }
   $("joinBtn").disabled = false;
+  mediaReady = true;
+  updateRoomJoin();
 }
+
+// The start screen: "New meeting", or join one by typing its ID. Opened from an invite link, it offers
+// to join that meeting (or to start a new one instead).
+let mediaReady = false;
+function showStartScreen() {
+  const invited = !!ROOM;
+  $("joinBtn").textContent = invited ? "Join meeting" : "New meeting";
+  $("linkInfo").classList.toggle("hidden", !invited);
+  $("linkId").textContent = prettyRoom(ROOM);
+  $("joinById").classList.toggle("hidden", invited);
+  $("newInstead").classList.toggle("hidden", !invited);
+  $("joinSub").textContent = invited ? "You're invited to a meeting. Check your camera, enter your name, and join."
+                                     : "Check your camera, enter your name, then start a new meeting or join one.";
+}
+// The meeting ID boxes: one letter each (3-4-3). Typing moves to the next box, Backspace goes back,
+// arrow keys move, and pasting an ID or a whole invite link fills them all.
+const ID_LEN = 10;
+const idBoxes = [];
+for (let i = 0; i < ID_LEN; i++) {
+  if (i === 3 || i === 7) { const d = document.createElement("span"); d.className = "idDash"; d.textContent = "–"; $("idBoxes").appendChild(d); }
+  const b = document.createElement("input");
+  b.type = "text"; b.className = "idBox"; b.inputMode = "text";
+  b.autocomplete = "off"; b.spellcheck = false;
+  b.setAttribute("autocapitalize", "off"); b.setAttribute("autocorrect", "off");
+  b.setAttribute("aria-label", "Meeting ID letter " + (i + 1));
+  idBoxes.push(b);
+  $("idBoxes").appendChild(b);
+}
+const typedId = () => idBoxes.map(b => b.value).join("");
+function fillIdBoxes(key, from = 0) {      // put letters into the boxes from box `from` onwards
+  let j = from;
+  for (const ch of key) { if (j >= ID_LEN) break; idBoxes[j++].value = ch; }
+  updateRoomJoin();
+  return j;
+}
+function focusAfter(j) { if (j >= ID_LEN) $("roomJoin").disabled ? idBoxes[ID_LEN - 1].focus() : $("roomJoin").focus(); else idBoxes[j].focus(); }
+idBoxes.forEach((b, i) => {
+  b.addEventListener("focus", () => b.select());
+  b.addEventListener("input", () => {
+    const raw = b.value;
+    b.value = "";
+    // A phone keyboard's clipboard button often "types" a whole link or ID instead of pasting it.
+    if (raw.length > 2 && /[#/.:\s-]/.test(raw)) { takePasted(raw); return; }
+    const letters = raw.toLowerCase().replace(/[^a-z]/g, "");
+    if (!letters) { updateRoomJoin(); return; }
+    if (letters.length === ID_LEN) { takePasted(letters); return; }
+    // usually one letter; a keyboard suggestion can bring a few at once, so spread them over the next boxes
+    focusAfter(fillIdBoxes(letters, i));
+  });
+  b.addEventListener("keydown", e => {
+    if (e.key === "Backspace" && !b.value && i > 0) { e.preventDefault(); idBoxes[i - 1].value = ""; idBoxes[i - 1].focus(); updateRoomJoin(); }
+    else if (e.key === "ArrowLeft" && i > 0) { e.preventDefault(); idBoxes[i - 1].focus(); }
+    else if (e.key === "ArrowRight" && i < ID_LEN - 1) { e.preventDefault(); idBoxes[i + 1].focus(); }
+    else if (e.key === "Enter" && !$("roomJoin").disabled) { e.preventDefault(); joinTyped(); }
+  });
+});
+function takePasted(text) {
+  const key = parseRoom(text);
+  if (/^[a-z]{10}$/.test(key)) { idBoxes.forEach(b => { b.value = ""; }); focusAfter(fillIdBoxes(key)); }
+  else if (key) { setRoom(key); showStartScreen(); toast("Meeting " + key + " — tap Join meeting"); }   // an older-style ID
+  else { toast("That doesn't look like a meeting ID — they look like abc-defg-hij"); updateRoomJoin(); }
+}
+$("idBoxes").addEventListener("paste", e => {
+  e.preventDefault();
+  takePasted((e.clipboardData || window.clipboardData).getData("text"));
+});
+function updateRoomJoin() {
+  idBoxes.forEach(b => b.classList.toggle("filled", !!b.value));
+  $("roomJoin").disabled = !mediaReady || typedId().length !== ID_LEN;
+}
+function startOrJoin() {                   // the big button
+  if (ROOM) joinMode = "join";             // the meeting from the invite link
+  else { setRoom(newRoomCode()); joinMode = "start"; }
+  requestJoin();
+}
+function joinTyped() {                     // "Join" under the meeting ID boxes
+  const key = typedId();
+  if (key.length !== ID_LEN) { toast("Fill in all 10 letters of the meeting ID"); focusAfter(key.length); return; }
+  setRoom(key);
+  joinMode = "join";
+  requestJoin();
+}
+$("roomJoin").onclick = joinTyped;
+$("newInstead").onclick = () => { setRoom(""); showStartScreen(); };
+showStartScreen();
 
 function requestJoin() {
   if (typeof Peer === "undefined") { toast("Can't reach the call service — check your internet and reload"); return; }
@@ -1371,6 +1558,10 @@ function requestJoin() {
   $("joinBtn").disabled = true;
   $("joinBtn").textContent = "Connecting…";
   $("nameInput").disabled = true;
+  $("joinById").classList.add("hidden");   // show which meeting I'm going into
+  $("newInstead").classList.add("hidden");
+  $("linkInfo").classList.remove("hidden");
+  $("linkId").textContent = prettyRoom(ROOM);
   armBack();                               // from now on, back asks before leaving
   startPeer();
 }
@@ -1386,8 +1577,10 @@ function enterCallUI() {
   if (inCall || left) return;
   inCall = true;
   joinedAt = performance.now();
+  clearTimeout(startWaitT);
   $("join").classList.add("hidden");
   $("call").classList.remove("hidden");
+  $("idPill").textContent = "ID " + prettyRoom(ROOM);
   const tile = makeTile("me", myName + " (You)");
   tile.querySelector("video").muted = true;
   updateLocalTile(true);
@@ -1440,9 +1633,15 @@ function leaveCall(message) {
   $("nameInput").classList.add("hidden");
   $("nameLabel").classList.add("hidden");
   $("joinSub").textContent = message || "You left the call.";
+  clearTimeout(startWaitT);
+  $("startNow").classList.add("hidden");
+  $("joinById").classList.add("hidden");
   $("joinBtn").textContent = "Rejoin";
   $("joinBtn").disabled = false;
   $("joinBtn").onclick = () => location.reload();
+  $("newInstead").textContent = "Start or join another meeting";
+  $("newInstead").classList.remove("hidden");
+  $("newInstead").onclick = () => { location.href = BASE_URL; };   // back to the start screen
 }
 
 /* ---------------- mic / camera / switch camera ---------------- */
@@ -3934,7 +4133,8 @@ $("mic").onclick = () => {
 const SHORTCUTS = [["M", "Mute or unmute"], ["Hold Space", "Talk while muted"], ["V", "Camera on or off"],
   ["C", "Captions on or off"], ["H", "Raise or lower your hand"], ["1 – 7", "Send a reaction"], ["T", "Open or close chat"],
   ["P", "Open or close People"], ["S", "Share your screen"], ["E", "Backgrounds and face filters"], ["D", "Draw on your video"],
-  ["W", "Whiteboard"], ["Ctrl + Z", "Undo your last line"], ["?", "Show these shortcuts"], ["Esc", "Close pop-ups"]];
+  ["W", "Whiteboard"], ["I", "Invite people"], ["Ctrl + Z", "Undo your last line"], ["?", "Show these shortcuts"],
+  ["Esc", "Close pop-ups"]];
 const typing = el => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 addEventListener("keydown", e => {
   if (!inCall || left || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
@@ -3946,7 +4146,7 @@ addEventListener("keydown", e => {
   if (k === "?") { e.preventDefault(); toggleKeys(); return; }
   const n = /^[1-9]$/.test(k) ? +k : 0;
   if (n && n <= REACTIONS.length) { sendReaction(REACTIONS[n - 1]); return; }
-  const keys = { m: "mic", v: "cam", h: "raiseBtn", t: "chatBtn", p: "peopleBtn", s: "share", d: "draw", w: "wbBtn" };
+  const keys = { m: "mic", v: "cam", h: "raiseBtn", t: "chatBtn", p: "peopleBtn", s: "share", d: "draw", w: "wbBtn", i: "copy" };
   if (keys[k]) press(keys[k]);
   else if (k === "c") { e.preventDefault(); setCaptions(!cap.wanted); }
   else if (k === "e" && !$("filterBtn").classList.contains("hidden")) { e.preventDefault(); openPop("filterPop", $("filterBtn")); }
@@ -3960,8 +4160,9 @@ addEventListener("blur", pttUp);            // switched windows while holding Sp
 document.addEventListener("visibilitychange", () => { if (document.hidden) pttUp(); });
 
 // A small sheet for the shortcut list and the iPhone install steps.
-function showInfo(title, build) {
+function showInfo(title, build, okText) {
   $("infoTitle").textContent = title;
+  $("infoOk").textContent = okText || "Got it";
   const body = $("infoBody");
   body.textContent = "";
   build(body);
@@ -4017,10 +4218,40 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
 }
 
 /* ---------------- other buttons ---------------- */
-$("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(INVITE); toast("Invite link copied"); }
-  catch (e) { prompt("Copy this link:", INVITE); }
-};
+// Invite: the meeting ID (to read out or type in) plus buttons to copy the link, copy the ID, or share.
+async function copyText(text, what) {
+  try { await navigator.clipboard.writeText(text); toast(what + " copied"); }
+  catch (e) { prompt("Copy this:", text); }
+}
+function showInvite() {
+  showInfo("Invite people", body => {
+    const id = document.createElement("div");
+    id.className = "inviteId";
+    if (/^[a-z]{10}$/.test(ROOM)) {          // the same 3-4-3 letter boxes people type it into
+      [...ROOM].forEach((ch, k) => {
+        if (k === 3 || k === 7) { const d = document.createElement("i"); d.textContent = "–"; id.appendChild(d); }
+        const s = document.createElement("span"); s.textContent = ch; id.appendChild(s);
+      });
+    } else { id.classList.add("plainId"); id.textContent = ROOM; }
+    const p = document.createElement("p");
+    p.textContent = "Send the link, or tell people this meeting ID — they type it in under “Join with a meeting ID”.";
+    const btn = (label, cls, fn) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (cls) b.className = cls;
+      b.style.marginBottom = "8px";
+      b.onclick = () => { hideInfo(); fn(); };
+      body.appendChild(b);
+    };
+    body.append(id, p);
+    btn("Copy invite link", "stay", () => copyText(INVITE, "Invite link"));
+    btn("Copy meeting ID", "plain", () => copyText(prettyRoom(ROOM), "Meeting ID"));
+    if (navigator.share) btn("Share…", "plain", () => navigator.share({
+      title: "Join my video call", text: "Join my video call — meeting ID " + prettyRoom(ROOM), url: INVITE }).catch(() => {}));
+  }, "Close");
+}
+$("copy").onclick = showInvite;
+$("idPill").onclick = () => copyText(prettyRoom(ROOM), "Meeting ID");
 $("copyTop").onclick = () => $("copy").click();
 $("leave").onclick = () => leaveCall();
 
@@ -4094,7 +4325,7 @@ $("leaveStay").onclick = hideLeaveSheet;
 $("leaveGo").onclick = () => { const was = inCall; hideLeaveSheet(); leaveCall(was ? undefined : "You stopped joining."); };
 $("leaveEnd").onclick = () => { hideLeaveSheet(); endForAll(); };
 $("leaveSheet").onclick = e => { if (e.target === $("leaveSheet")) hideLeaveSheet(); };   // tap outside = stay
-$("joinBtn").onclick = requestJoin;
+$("joinBtn").onclick = startOrJoin;
 $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("joinBtn").disabled) $("joinBtn").click(); });
 
 document.querySelectorAll(".know").forEach(btn => btn.onclick = () => {
