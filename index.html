@@ -287,7 +287,15 @@
   #ccPop label { margin: 10px 2px 4px; font-size: 12px; }
   #ccPop select { padding: 8px 10px; }
   #ccToggle { width: 100%; justify-content: center; height: 38px; font-size: 14px; }
+  #ccPop .chk { display: flex; align-items: center; gap: 8px; margin: 12px 2px 0; font-size: 13px; color: var(--text); cursor: pointer; }
+  #ccPop .chk input { width: 17px; height: 17px; accent-color: var(--accent); }
   #ccPill { background: #2f9e44; color: #fff; border-color: #2f9e44; }
+  #notesPill { background: #fff6cc; color: #7a5b00; border-color: #f5d76e; cursor: pointer; }
+  #notesPop { width: min(320px, calc(100vw - 16px)); }
+  #notesPop .nstat { font-size: 13px; font-weight: 600; margin: 2px 2px 8px; }
+  #notesPop .wide { width: 100%; justify-content: center; height: 38px; font-size: 14px; margin-top: 6px; }
+  #notesPop .nrow { display: flex; gap: 6px; margin-top: 6px; }
+  #notesPop .nrow input { flex: 1; min-width: 0; padding: 8px 10px; }
   #pttPill { background: #2f9e44; color: #fff; border-color: #2f9e44; font-weight: 600; }
 
   /* Info sheets (keyboard shortcuts, how to install on iPhone) */
@@ -446,6 +454,7 @@
     <span class="pill hidden" id="audioPill" title="Everyone joins with sound only — no cameras">📞 Audio call</span>
     <span class="pill hidden" id="recPill"></span>
     <span class="pill hidden" id="pttPill">🎙️ Talking</span>
+    <button class="pill hidden" id="notesPill">📝 Notes on</button>
     <span class="pill hidden" id="ccPill" title="Your speech is being turned into captions for people who switched captions on">CC</span>
     <span id="status"></span>
     <button class="pill" id="idPill" title="Meeting ID — click to copy"></button>
@@ -509,6 +518,10 @@
       <button class="ctl" id="share" title="Share screen">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
         <span class="lbl">Share screen</span>
+      </button>
+      <button class="ctl hidden" id="notesBtn" title="Meeting notes (N marks a moment)">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg>
+        <span class="lbl">Notes</span>
       </button>
       <button class="ctl" id="ccBtn" title="Live captions (C)">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.3a2.3 2.3 0 1 0 0 3.4M17 10.3a2.3 2.3 0 1 0 0 3.4"/></svg>
@@ -589,12 +602,23 @@
   <button class="fopt" data-k="video"><b>🎥</b><span>Video and sound</span></button>
   <button class="fopt" data-k="audio"><b>🎙️</b><span>Sound only</span></button>
 </div>
+<div id="notesPop" class="pop hidden">
+  <div class="nstat" id="notesStatus">Notes are off</div>
+  <button class="dctl wide" id="notesToggle">📝 Start taking notes</button>
+  <div id="notesTools">
+    <button class="dctl wide" id="notesStar">⭐ Mark this moment</button>
+    <div class="nrow"><input type="text" id="notesInput" maxlength="300" placeholder="✏️ Add a note…" autocomplete="off"><button class="dctl" id="notesAdd">Add</button></div>
+  </div>
+  <button class="dctl wide hidden" id="notesAgain">📄 Get the last notes again</button>
+  <div class="fnote" id="notesNote"></div>
+</div>
 <div id="ccPop" class="pop hidden">
   <button class="dctl" id="ccToggle">Captions: off</button>
   <label for="ccSpeak">I speak</label>
   <select id="ccSpeak"></select>
   <label for="ccShow">Show captions in</label>
   <select id="ccShow"></select>
+  <label class="chk"><input type="checkbox" id="ccRoman"> Show Hindi in Roman letters (Hinglish)</label>
   <div class="fnote" id="ccNote"></div>
 </div>
 <div id="infoSheet" class="hidden">
@@ -881,7 +905,8 @@ function blackTrack() {            // stand-in picture for people with no camera
 function myState(to) {
   const showRec = rec.on && !!to && (to === hostId || cohosts.has(to));
   return { t: "state", mic: micOn(), cam: camOn(), sharing: !!screenStream, drawing: draw.on, rec: showRec, hand: myHand,
-           cc: cap.wanted, lang: cap.lang };   // cc: I'd like captions; lang: the language I speak
+           cc: cap.wanted, lang: cap.lang,     // cc: I'd like captions; lang: the language I speak
+           notes: notes.on, sr: !!SR };        // notes: I'm taking notes; sr: my browser can turn my speech into text
 }
 function broadcast(msg) { for (const c of peerConns.values()) if (c.open) try { c.send(msg); } catch (e) {} }
 function sendState() {
@@ -907,11 +932,18 @@ function onPeerMsg(id, msg) {
   if (msg.t === "state") {
     const before = pstate.get(id);
     const now = { mic: !!msg.mic, cam: !!msg.cam, sharing: !!msg.sharing, drawing: !!msg.drawing, rec: !!msg.rec, hand: !!msg.hand,
-                  cc: !!msg.cc, lang: typeof msg.lang === "string" && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(msg.lang) ? msg.lang : "" };
+                  cc: !!msg.cc, lang: typeof msg.lang === "string" && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(msg.lang) ? msg.lang : "",
+                  notes: !!msg.notes, sr: msg.sr !== false };
     pstate.set(id, now);
     renderPeer(id);
     if (!now.mic && before && before.mic) clearCapInterim(id);
     if (!!(before && before.cc) !== now.cc) capSync();   // someone switched captions on or off
+    if (!!(before && before.notes) !== now.notes) {      // someone started or stopped taking notes
+      capSync();
+      updateNotesUI();
+      toast(nameOf(id) + (now.notes ? (before ? " started taking notes — everyone's speech is being written down" : " is taking notes")
+                                    : " stopped taking notes"));
+    }
     if (now.hand && !hands.has(id)) { hands.set(id, Date.now()); toast(nameOf(id) + " raised their hand ✋"); }
     if (!now.hand && hands.has(id)) hands.delete(id);
     renderHands();
@@ -923,7 +955,11 @@ function onPeerMsg(id, msg) {
     if (now.sharing && !(before && before.sharing) && (!pinnedId || autoPinned)) { pinnedId = id; autoPinned = true; layout(); toast(nameOf(id) + " is sharing their screen"); }
     if (!now.sharing && before && before.sharing && pinnedId === id && autoPinned) { pinnedId = null; autoPinned = false; layout(); }
   } else if (msg.t === "chat") {
-    addChat(id, String(msg.text || "").slice(0, 500), !!msg.pm);
+    const text = String(msg.text || "").slice(0, 500);
+    addChat(id, text, !!msg.pm);
+    if (!msg.pm) notesChat(id, text);                  // private messages stay out of the notes
+  } else if (msg.t === "note") {
+    receiveNote(id, msg);
   } else if (msg.t === "cc") {
     receiveCap(id, msg);
   } else if (msg.t === "wb") {
@@ -946,7 +982,7 @@ function onPeerMsg(id, msg) {
 function wireCall(id, c) {
   calls.set(id, c);
   let tile = $("tile-" + id);
-  if (!tile) tile = makeTile(id, nameOf(id));
+  if (!tile) { tile = makeTile(id, nameOf(id)); notesPresence(id, "join"); }
   tile.querySelector(".name").textContent = nameOf(id);
   tile.querySelector(".avatar span").textContent = (nameOf(id).trim()[0] || "?").toUpperCase();
   refreshRecipients();
@@ -986,6 +1022,7 @@ function dropPeer(id, c, note) {
   allowed.delete(id);
   hands.delete(id);
   quality.delete(id); qprev.delete(id);
+  if ($("tile-" + id)) notesPresence(id, "leave");
   dropCapLine(id);
   capSync();
   const tile = $("tile-" + id);
@@ -994,6 +1031,7 @@ function dropPeer(id, c, note) {
   layout();
   updateRecUI();
   renderHands();
+  updateNotesUI();
 }
 
 function callPeer(id) {
@@ -1129,6 +1167,7 @@ function rolesChanged() {
   if (rec.on) sendState();
   for (const id of calls.keys()) renderPeer(id);
   updateRecUI();
+  updateNotesUI();                                     // only the host and co-hosts can start notes
 }
 function paintRoles() {
   for (const tile of $("grid").children) {
@@ -1637,6 +1676,7 @@ function enterCallUI() {
   if (!HTMLCanvasElement.prototype.captureStream || placeholderCam) $("filterBtn").classList.add("hidden");
   refreshCams();
   layout();
+  updateNotesUI();
   arrangeControls();
   armBack();
 }
@@ -1652,6 +1692,7 @@ function leaveCall(message) {
     calls.clear();
     if (p) try { p.destroy(); } catch (e) {}
   }, 300);
+  stopNotes(true);                         // leaving saves the notes
   stopRecording();                         // leaving saves the recording
   stopDrawing(true);
   face.filter = null;
@@ -2269,6 +2310,7 @@ function ensureBoard() {
       <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
     <button class="dctl" data-act="clear" title="Clear the board for everyone">
       <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="t">Clear</span></button>
+    <button class="dctl hidden" data-act="snap" title="Add the board to the meeting notes">📸</button>
     <button class="dctl" data-act="save" title="Save the board as a picture">
       <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
     <button class="dctl" data-act="close" title="Hide the whiteboard (only for you)">
@@ -2293,6 +2335,7 @@ function ensureBoard() {
   act("eraser").onclick = () => { wb.eraser = !wb.eraser; wbShowTools(); };
   act("undo").onclick = wbUndo;
   act("save").onclick = wbSave;
+  act("snap").onclick = addBoardToNotes;
   act("close").onclick = hideBoard;
   act("clear").onclick = () => {           // needs a second click, because it wipes everyone's work
     const lbl = act("clear").querySelector(".t");
@@ -2327,6 +2370,7 @@ function ensureBoard() {
   c.addEventListener("lostpointercapture", up);
 }
 function wbShowTools() {
+  wb.tools.querySelector('[data-act="snap"]').classList.toggle("hidden", !anyNotesOn());   // 📸 only while notes are on
   wb.tools.querySelectorAll(".sw").forEach(s => s.classList.toggle("sel", !wb.eraser && s.dataset.col === wb.color));
   wb.tools.querySelector('[data-act="eraser"]').classList.toggle("on", wb.eraser);
   const dot = wb.tools.querySelector(".wbSize i");
@@ -2418,6 +2462,7 @@ function wbRemove(sid) {
   wbRedraw();
 }
 function wbWipe(epoch) {
+  if (wb.strokes.length) boardToNotes("cleared");      // keep a picture in the notes before it's wiped
   wb.epoch = epoch;
   wb.strokes = [];
   wb.byId.clear();
@@ -2765,6 +2810,7 @@ async function startRecording(kind) {
   rec.mr.start(1000);                                        // hand over data every second
   rec.on = true;
   rec.started = Date.now();
+  if (notes.on) notes.recs.push({ start: rec.started, kind: rec.kind });   // so the notes can play along with it
   rec.stopTick = soundOnly ? startTicker(recSyncAudio, 1000)   // sound only: just keep the sound mix up to date
     : startTicker(() => {
       const now = performance.now();
@@ -2848,7 +2894,7 @@ addEventListener("beforeunload", e => {
 /* ---------------- the button bar: whatever doesn't fit on one row goes in the ⋯ menu ---------------- */
 const CTL_ORDER = [...$("controls").children];                    // the bar's normal order
 // Moved into the ⋯ menu first → last when the bar is too narrow (most-used buttons stay out).
-const OVERFLOW = ["recBtn", "filterBtn", "wbBtn", "draw", "share", "ccBtn", "peopleBtn", "raiseBtn", "reactBtn"];
+const OVERFLOW = ["recBtn", "filterBtn", "wbBtn", "draw", "share", "notesBtn", "ccBtn", "peopleBtn", "raiseBtn", "reactBtn"];
 function barFits() {
   const vis = [...$("controls").children].filter(e => e.offsetParent);
   return vis.every(e => e.offsetTop === vis[0].offsetTop);
@@ -2892,7 +2938,7 @@ for (const el of CTL_ORDER) moreWatch.observe(el, { attributes: true, attributeF
 addEventListener("resize", arrangeControls);
 
 // Small pop-up panels (reactions, filters) open above their button, or above ⋯ if the button is in the menu.
-const POPS = ["reactPop", "filterPop", "ccPop", "recPop"];
+const POPS = ["reactPop", "filterPop", "ccPop", "recPop", "notesPop"];
 function openPop(id, btn) {
   const inMenu = !!btn.closest("#moreMenu");
   const pop = $(id), wasOpen = !pop.classList.contains("hidden");
@@ -2907,7 +2953,7 @@ function openPop(id, btn) {
 function closePops() { for (const id of POPS) $(id).classList.add("hidden"); }
 document.addEventListener("pointerdown", e => {
   if (!$("moreMenu").classList.contains("hidden") && !e.target.closest("#moreMenu, #moreBtn")) closeMore();
-  if (!e.target.closest(".pop, #reactBtn, #filterBtn, #ccBtn, #recBtn")) closePops();
+  if (!e.target.closest(".pop, #reactBtn, #filterBtn, #ccBtn, #recBtn, #notesBtn, #notesPill")) closePops();
 });
 addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
@@ -3474,6 +3520,175 @@ function drawFilter(g, W, H) {
   g.restore();
 }
 
+/* ---------------- Hinglish: Hindi words in Roman letters ---------------- */
+// Speech recognition set to Hindi writes Hindi in Devanagari, and often English words too (टाइम for "time").
+// toRoman() rewrites it the way people type Hinglish on WhatsApp, in four layers:
+//   1. a list of everyday Hindi words, spelled the usual way (है → hai, नहीं → nahi)
+//   2. a list of English words common in Indian speech (टाइम → time, एग्जाम → exam)
+//   3. English words heard earlier in this call, matched by sound (एवोल्यूशन → evolution once someone said it in English)
+//   4. letter-by-letter rules, dropping the silent "a" the way Hindi is spoken (मतलब → matlab, not matalaba)
+const HI_WORDS = "है:hai|हैं:hain|हूं:hoon|हो:ho|था:tha|थी:thi|थे:the|में:mein|मैं:main|मुझे:mujhe|मुझको:mujhko|मेरा:mera|मेरी:meri|मेरे:mere|" +
+  "हम:hum|हमें:humein|हमारा:hamara|हमारी:hamari|हमारे:hamare|तुम:tum|तुम्हें:tumhe|तुम्हारा:tumhara|तुम्हारी:tumhari|तुम्हारे:tumhare|" +
+  "आप:aap|आपका:aapka|आपकी:aapki|आपके:aapke|आपको:aapko|तू:tu|तेरा:tera|तेरी:teri|तेरे:tere|तुझे:tujhe|वह:woh|वो:wo|वे:ve|ये:ye|यह:yeh|" +
+  "इस:is|उस:us|इसे:ise|उसे:use|इसका:iska|इसकी:iski|इसके:iske|उसका:uska|उसकी:uski|उसके:uske|उन:un|इन:in|उनका:unka|उनकी:unki|उनके:unke|" +
+  "इनका:inka|इनकी:inki|इनके:inke|उन्हें:unhe|इन्हें:inhe|कोई:koi|कुछ:kuch|सब:sab|सभी:sabhi|खुद:khud|अपना:apna|अपनी:apni|अपने:apne|" +
+  "का:ka|की:ki|के:ke|को:ko|से:se|पर:par|तक:tak|ने:ne|लिए:liye|लिये:liye|साथ:saath|बाद:baad|पहले:pehle|बारे:baare|वाला:wala|वाली:wali|वाले:wale|" +
+  "जैसे:jaise|जैसा:jaisa|जैसी:jaisi|वैसे:waise|ऐसे:aise|ऐसा:aisa|ऐसी:aisi|कैसे:kaise|कैसा:kaisa|कैसी:kaisi|और:aur|या:ya|लेकिन:lekin|मगर:magar|" +
+  "तो:to|भी:bhi|ही:hi|न:na|ना:na|नहीं:nahi|मत:mat|कि:ki|क्योंकि:kyunki|अगर:agar|फिर:phir|तब:tab|जब:jab|अब:ab|अभी:abhi|कभी:kabhi|सही:sahi|" +
+  "ठीक:theek|हां:haan|जी:ji|अच्छा:accha|अच्छी:acchi|अच्छे:acche|बहुत:bahut|ज्यादा:zyada|कम:kam|थोडा:thoda|थोडी:thodi|बस:bas|सिर्फ:sirf|" +
+  "वाह:wah|यार:yaar|भाई:bhai|दीदी:didi|क्या:kya|क्यों:kyun|कौन:kaun|कहां:kahan|कब:kab|कितना:kitna|कितनी:kitni|कितने:kitne|किसको:kisko|" +
+  "किसका:kiska|किसे:kise|कर:kar|करना:karna|करो:karo|करें:karein|करेंगे:karenge|करेगा:karega|करेगी:karegi|करता:karta|करती:karti|करते:karte|" +
+  "किया:kiya|किए:kiye|करके:karke|रहा:raha|रही:rahi|रहे:rahe|रहना:rehna|होना:hona|होता:hota|होती:hoti|होते:hote|हुआ:hua|हुई:hui|हुए:hue|" +
+  "होगा:hoga|होगी:hogi|होंगे:honge|गया:gaya|गई:gayi|गए:gaye|जा:ja|जाना:jaana|जाता:jaata|जाती:jaati|जाते:jaate|जाएगा:jayega|जाएगी:jayegi|" +
+  "जाओ:jao|आ:aa|आना:aana|आता:aata|आती:aati|आते:aate|आया:aaya|आई:aayi|आए:aaye|आओ:aao|देना:dena|दे:de|दो:do|दिया:diya|देता:deta|देती:deti|" +
+  "देते:dete|देखो:dekho|देखना:dekhna|देख:dekh|देखा:dekha|लेना:lena|ले:le|लो:lo|लिया:liya|बोल:bol|बोलो:bolo|बोला:bola|बोली:boli|बोलना:bolna|" +
+  "कहा:kaha|कह:keh|कहना:kehna|बताओ:batao|बताना:batana|बता:bata|बताया:bataya|समझ:samajh|समझो:samjho|समझना:samajhna|समझा:samjha|सकता:sakta|" +
+  "सकती:sakti|सकते:sakte|चाहिए:chahiye|चाहता:chahta|चाहती:chahti|पता:pata|लगता:lagta|लगती:lagti|लगा:laga|मिल:mil|मिला:mila|मिली:mili|" +
+  "पढ:padh|पढना:padhna|पढो:padho|पढाई:padhai|लिख:likh|लिखना:likhna|लिखो:likho|सुन:sun|सुनो:suno|सुना:suna|सोच:soch|सोचो:socho|रख:rakh|" +
+  "रखो:rakho|रखना:rakhna|चल:chal|चलो:chalo|चलेगा:chalega|बैठो:baitho|भेज:bhej|भेजो:bhejo|भेजना:bhejna|भेजूंगा:bhejunga|भेजूंगी:bhejungi|" +
+  "दूंगा:dunga|दूंगी:dungi|लूंगा:lunga|करूंगा:karunga|करूंगी:karungi|पडेगा:padega|पडता:padta|बात:baat|बातें:baatein|काम:kaam|दिन:din|आज:aaj|" +
+  "कल:kal|परसों:parson|रात:raat|सुबह:subah|शाम:shaam|समय:samay|घंटा:ghanta|घंटे:ghante|साल:saal|महीना:mahina|हफ्ता:hafta|लोग:log|लोगों:logon|" +
+  "दोस्त:dost|घर:ghar|पैसे:paise|पैसा:paisa|नाम:naam|सवाल:sawaal|जवाब:jawab|मतलब:matlab|तरह:tarah|तरीका:tarika|चीज:cheez|चीजें:cheezein|" +
+  "जगह:jagah|पानी:paani|खाना:khana|किताब:kitaab|उदाहरण:udaharan|जानकारी:jankari|विषय:vishay|अध्याय:adhyay|परीक्षा:pariksha|प्रश्न:prashn|" +
+  "उत्तर:uttar|जरूरी:zaroori|जरूर:zaroor|शायद:shayad|पूरा:poora|पूरी:poori|आधा:aadha|एक:ek|तीन:teen|चार:chaar|पांच:paanch|छह:chhe|सात:saat|" +
+  "आठ:aath|नौ:nau|दस:das|पहला:pehla|दूसरा:doosra|तीसरा:teesra|नया:naya|नई:nayi|पुराना:purana|बडा:bada|बडी:badi|छोटा:chhota|छोटी:chhoti|" +
+  "आसान:aasaan|मुश्किल:mushkil|अलग:alag|सारे:saare|सारा:saara|सारी:saari|हर:har|बिल्कुल:bilkul|शुरू:shuru|खत्म:khatam|याद:yaad|ध्यान:dhyaan|" +
+  "मदद:madad|शुक्रिया:shukriya|धन्यवाद:dhanyavaad|नमस्ते:namaste|जल्दी:jaldi|हिंदी:Hindi|भारत:Bharat|सच:sach|सच्ची:sacchi|गलत:galat|" +
+  "मुझसे:mujhse|तुमसे:tumse|आपसे:aapse|उससे:usse|इससे:isse|यहां:yahan|वहां:wahan|ऊपर:upar|नीचे:neeche|अंदर:andar|बाहर:bahar|पास:paas|दूर:door";
+const EN_WORDS = "टाइम:time|चेंज:change|क्लास:class|क्लासेस:classes|एग्जाम:exam|एग्जाम्स:exams|टेस्ट:test|प्रोजेक्ट:project|असाइनमेंट:assignment|" +
+  "होमवर्क:homework|मीटिंग:meeting|कॉल:call|फोन:phone|मोबाइल:mobile|लैपटॉप:laptop|कंप्यूटर:computer|इंटरनेट:internet|वाईफाई:wifi|नेटवर्क:network|" +
+  "लिंक:link|मैसेज:message|ईमेल:email|ग्रुप:group|व्हाट्सएप:WhatsApp|वीडियो:video|ऑडियो:audio|स्क्रीन:screen|शेयर:share|नोट्स:notes|नोट:note|" +
+  "पेज:page|बुक:book|चैप्टर:chapter|टॉपिक:topic|सब्जेक्ट:subject|सिलेबस:syllabus|लेक्चर:lecture|टीचर:teacher|सर:sir|मैम:ma'am|स्टूडेंट:student|" +
+  "स्टूडेंट्स:students|कॉलेज:college|स्कूल:school|यूनिवर्सिटी:university|सेमेस्टर:semester|मार्क्स:marks|रिजल्ट:result|क्वेश्चन:question|आंसर:answer|" +
+  "एग्जांपल:example|एग्जाम्पल:example|डाउट:doubt|प्रॉब्लम:problem|सॉल्यूशन:solution|आइडिया:idea|प्लान:plan|डेडलाइन:deadline|सबमिट:submit|" +
+  "रिपोर्ट:report|प्रेजेंटेशन:presentation|स्लाइड:slide|स्लाइड्स:slides|डॉक्यूमेंट:document|फाइल:file|फोल्डर:folder|कोड:code|कोडिंग:coding|" +
+  "प्रोग्राम:program|प्रोग्रामिंग:programming|ऐप:app|वेबसाइट:website|डेटा:data|डाटा:data|सर्वर:server|एरर:error|बग:bug|टीम:team|लीडर:leader|" +
+  "मेंबर:member|ऑफिस:office|जॉब:job|इंटरव्यू:interview|कंपनी:company|मैनेजर:manager|बॉस:boss|सैलरी:salary|ट्रेनिंग:training|प्रैक्टिस:practice|" +
+  "रिवीजन:revision|रिवाइज:revise|सिंपल:simple|इजी:easy|हार्ड:hard|डिफिकल्ट:difficult|इंपॉर्टेंट:important|इम्पोर्टेंट:important|इंपोर्टेंट:important|" +
+  "बेसिक:basic|एडवांस:advance|कॉन्सेप्ट:concept|थ्योरी:theory|फार्मूला:formula|फॉर्मूला:formula|डायग्राम:diagram|ग्राफ:graph|चार्ट:chart|लिस्ट:list|" +
+  "पॉइंट:point|पॉइंट्स:points|लाइन:line|नंबर:number|टोटल:total|परसेंट:percent|ओके:ok|हेलो:hello|हाय:hi|बाय:bye|थैंक्स:thanks|थैंक:thank|सॉरी:sorry|" +
+  "प्लीज:please|यस:yes|रेडी:ready|स्टार्ट:start|स्टॉप:stop|फिनिश:finish|कंप्लीट:complete|डन:done|फ्री:free|बिजी:busy|लेट:late|अर्जेंट:urgent|" +
+  "मंडे:Monday|ट्यूसडे:Tuesday|वेडनेसडे:Wednesday|थर्सडे:Thursday|फ्राइडे:Friday|सैटरडे:Saturday|संडे:Sunday|वीक:week|वीकेंड:weekend|मंथ:month|" +
+  "मिनट:minute|मिनट्स:minutes|सेकंड:second|आवर:hour|नेक्स्ट:next|लास्ट:last|फर्स्ट:first|फाइनल:final|एक्चुअली:actually|बेसिकली:basically|" +
+  "लाइक:like|ओनली:only|ऑलरेडी:already|मेबी:maybe|श्योर:sure|राइट:right|रॉन्ग:wrong|गुड:good|बैड:bad|नाइस:nice|ग्रेट:great|कूल:cool|" +
+  "परफेक्ट:perfect|वेरी:very|मच:much|मोर:more|लेस:less|स्पीड:speed|साइज:size|टाइप:type|मोड:mode|सेटिंग:setting|सेटिंग्स:settings|ऑप्शन:option|" +
+  "बटन:button|क्लिक:click|ओपन:open|क्लोज:close|सेव:save|डाउनलोड:download|अपलोड:upload|इंस्टॉल:install|अपडेट:update|चेक:check|ट्राई:try|वेट:wait|" +
+  "मिस:miss|मैच:match|गेम:game|मूवी:movie|सॉन्ग:song|पार्टी:party|बर्थडे:birthday|केक:cake|फूड:food|ट्रेन:train|कार:car|बाइक:bike|रूम:room|" +
+  "हॉस्टल:hostel|मेस:mess|कैंटीन:canteen|लाइब्रेरी:library|लैब:lab|प्रैक्टिकल:practical|वाइवा:viva|क्विज:quiz|पेपर:paper|सेक्शन:section|बैच:batch|" +
+  "रोल:roll|अटेंडेंस:attendance|प्रोफेसर:professor|स्ट्रेस:stress|हेल्प:help|सपोर्ट:support|फीडबैक:feedback|मैटर:matter|इश्यू:issue|रीजन:reason|" +
+  "रिसर्च:research|साइंस:science|बायोलॉजी:biology|केमिस्ट्री:chemistry|फिजिक्स:physics|मैथ्स:maths|मैथ:math|इंग्लिश:English|हिस्ट्री:history|" +
+  "इकोनॉमिक्स:economics|एवोल्यूशन:evolution|इवोल्यूशन:evolution|नेचुरल:natural|सिलेक्शन:selection|स्पीशीज:species|सेल:cell|डीएनए:DNA|जीन:gene|" +
+  "जेनेटिक्स:genetics|एनर्जी:energy|फोर्स:force|मशीन:machine|लर्निंग:learning|एआई:AI|मॉडल:model|एल्गोरिदम:algorithm|एल्गोरिथम:algorithm|" +
+  "डेटाबेस:database|नेटवर्किंग:networking|क्लाउड:cloud|कंप्यूटिंग:computing|जावा:Java|पायथन:Python|ऐरे:array|लूप:loop|फंक्शन:function|" +
+  "वेरिएबल:variable|ऑब्जेक्ट:object|स्टैक:stack|क्यू:queue|ट्री:tree|सॉर्टिंग:sorting|सर्चिंग:searching|बाइनरी:binary|रिकर्शन:recursion|" +
+  "कॉम्प्लेक्सिटी:complexity|आउटपुट:output|इनपुट:input|रन:run|कंपाइल:compile|डिबग:debug|टेस्टिंग:testing|गिटहब:GitHub|लिंक्डइन:LinkedIn|" +
+  "लाइट:light|नाइट:night|प्लांट:plant|प्लांट्स:plants|क्लोरोफिल:chlorophyll|फोटोसिंथेसिस:photosynthesis|डार्विन:Darwin|एनिमल:animal|" +
+  "एनिमल्स:animals|ह्यूमन:human|ह्यूमंस:humans|बॉडी:body|ब्रेन:brain|प्रोसेस:process|स्टेप:step|स्टेप्स:steps|एक्सपेरिमेंट:experiment|" +
+  "एनवायरनमेंट:environment|सर्वाइवल:survival|फिटेस्ट:fittest|जेनरेशन:generation|जेनरेशंस:generations|म्यूटेशन:mutation|वेरिएशन:variation|" +
+  "ऑर्गेनिज्म:organism|एडेप्टेशन:adaptation|इंस्टाग्राम:Instagram|यूट्यूब:YouTube|गूगल:Google|चैटजीपीटी:ChatGPT|मैराथन:marathon|रनिंग:running|जिम:gym|हैकाथॉन:hackathon|" +
+  "इंटर्नशिप:internship|प्लेसमेंट:placement|रिज्यूमे:resume|डिग्री:degree|बीटेक:BTech|सीजीपीए:CGPA|ऑनलाइन:online|ऑफलाइन:offline|" +
+  "वर्जन:version|फीचर:feature|फीचर्स:features|डिजाइन:design|यूजर:user|लॉगिन:login|पासवर्ड:password|अकाउंट:account|सिस्टम:system";
+// Lookups ignore the dot under letters (ज़/ज), the moon-dot (ँ/ं) and the English "o" sign (ॉ/ो), which speech recognition uses unevenly.
+const dvNorm = w => w.normalize("NFD").replace(/़/g, "").replace(/ँ/g, "ं").replace(/ॉ/g, "ो").replace(/ऑ/g, "ओ");
+function wordMap(list) { const m = new Map(); for (const pair of list.split("|")) { const [d, r] = pair.split(":"); m.set(dvNorm(d), r); } return m; }
+const HI_MAP = wordMap(HI_WORDS), EN_MAP = wordMap(EN_WORDS);
+
+const DV_CONS = { "क": "k", "ख": "kh", "ग": "g", "घ": "gh", "ङ": "n", "च": "ch", "छ": "chh", "ज": "j", "झ": "jh", "ञ": "n", "ट": "t", "ठ": "th",
+  "ड": "d", "ढ": "dh", "ण": "n", "त": "t", "थ": "th", "द": "d", "ध": "dh", "न": "n", "प": "p", "फ": "ph", "ब": "b", "भ": "bh", "म": "m",
+  "य": "y", "र": "r", "ल": "l", "व": "v", "श": "sh", "ष": "sh", "स": "s", "ह": "h", "ळ": "l" };
+const DV_NUKTA = { "क": "q", "ख": "kh", "ग": "g", "ज": "z", "ड": "d", "ढ": "dh", "फ": "f", "य": "y" };
+const DV_VOWEL = { "अ": "a", "आ": "aa", "इ": "i", "ई": "ee", "उ": "u", "ऊ": "oo", "ऋ": "ri", "ए": "e", "ऐ": "ai", "ओ": "o", "औ": "au", "ऑ": "o", "ऍ": "e" };
+const DV_SIGN = { "ा": "aa", "ि": "i", "ी": "ee", "ु": "u", "ू": "oo", "ृ": "ri", "े": "e", "ै": "ai", "ो": "o", "ौ": "au", "ॉ": "o", "ॅ": "e" };
+// Letter-by-letter, with Hindi's dropped "a": at the end of a word (कमल → kamal) and in the middle
+// when a vowel comes before and a consonant + vowel after (मतलब → matlab, समझना → samajhna).
+function translitWord(word) {
+  const ch = [...word.normalize("NFD")], units = [];
+  for (let i = 0; i < ch.length; i++) {
+    const c = ch[i];
+    if (DV_CONS[c]) {
+      let r = DV_CONS[c];
+      if (ch[i + 1] === "़") { r = DV_NUKTA[c] || r; i++; }
+      const u = { c: r, v: "a", inherent: true, nasal: false };
+      const n = ch[i + 1];
+      if (DV_SIGN[n]) { u.v = DV_SIGN[n]; u.inherent = false; i++; }
+      else if (n === "्") { u.v = ""; u.inherent = false; i++; }
+      units.push(u);
+    } else if (DV_VOWEL[c]) units.push({ c: "", v: DV_VOWEL[c], inherent: false, nasal: false });
+    else if (c === "ं" || c === "ँ") { if (units.length) units[units.length - 1].nasal = true; }
+    else if (c === "ः") { if (units.length) units[units.length - 1].v += "h"; }
+  }
+  const n = units.length;
+  if (!n) return word;
+  const last = units[n - 1];
+  if (n > 1 && last.inherent && !last.nasal && units[n - 2].v !== "") last.v = "";            // end of the word
+  for (let i = n - 2; i >= 1; i--) {                                                              // the middle
+    const u = units[i], prev = units[i - 1], next = units[i + 1];
+    if (u.inherent && u.v === "a" && !u.nasal && prev.v !== "" && next.c && next.v !== "") { u.v = ""; i--; }
+  }
+  let out = "";
+  units.forEach((u, i) => {
+    const final = i === n - 1, next = units[i + 1];
+    let v = u.v;
+    if (final) v = v === "aa" ? "a" : v === "ee" ? "i" : v === "oo" ? "u" : v;           // Hinglish: "tha", "hoti", "tu"
+    let c = u.c;
+    if (u.v === "" && next && next.c === c + "h") c = "";                                  // च्छ → "chh" (accha), not "chchh"
+    out += c + v;
+    if (u.nasal) out += next && /^[pbm]/.test(next.c) ? "m" : "n";
+  });
+  return out;
+}
+// A rough "how it sounds" code, the same for an English word and its Hindi spelling: evolution and
+// एवोल्यूशन both give AVLSN. Used to match words already heard in English during this call.
+const SOUND_DV = { "क": "K", "ख": "K", "ग": "K", "घ": "K", "च": "S", "छ": "S", "ज": "S", "झ": "S", "ट": "T", "ठ": "T", "ड": "T", "ढ": "T",
+  "त": "T", "थ": "T", "द": "T", "ध": "T", "ण": "N", "न": "N", "ङ": "N", "ञ": "N", "प": "P", "फ": "P", "ब": "P", "भ": "P", "म": "M",
+  "र": "R", "ल": "L", "व": "V", "श": "S", "ष": "S", "स": "S", "ह": "H" };
+function soundDv(word) {
+  const ch = [...word.normalize("NFD")];
+  let k = "";
+  for (let i = 0; i < ch.length; i++) {
+    const c = ch[i];
+    if (i === 0 && DV_VOWEL[c]) k += "A";
+    else if (c === "ं" || c === "ँ") { const nx = ch[i + 1]; k += nx && SOUND_DV[nx] === "P" ? "M" : "N"; }
+    else if (SOUND_DV[c]) k += SOUND_DV[c];
+  }
+  return k.replace(/(.)\1+/g, "$1");
+}
+function soundEn(word) {
+  let s = word.toLowerCase().replace(/[^a-z]/g, "");
+  s = s.replace(/ph/g, "f").replace(/ck/g, "k").replace(/qu/g, "kv").replace(/x/g, "ks").replace(/(ss|s|t)ion/g, "shn")
+       .replace(/ture/g, "chr").replace(/ch(?=[lr])|^chem|sch/g, m => m === "sch" ? "sk" : m === "^chem" ? "kem" : m.replace("ch", "k")).replace(/c(?=[eiy])/g, "s").replace(/g(?=[eiy])/g, "j").replace(/th/g, "t").replace(/sh|ch/g, "s").replace(/gh/g, "g");
+  let k = /^[aeiou]/.test(s) ? "A" : "";
+  const MAP = { b: "P", p: "P", f: "P", t: "T", d: "T", k: "K", c: "K", g: "K", q: "K", s: "S", z: "S", j: "S", v: "V", w: "V", m: "M", n: "N", l: "L", r: "R", h: "H" };
+  for (const c of s) if (MAP[c]) k += MAP[c];
+  return k.replace(/(.)\1+/g, "$1");
+}
+const heardEnglish = new Map();             // sound code -> { word, n }: English words said during this call
+function learnWords(text) {
+  for (const w of String(text).match(/[A-Za-z][A-Za-z'-]{3,}/g) || []) {
+    const k = soundEn(w);
+    if (k.length < 3) continue;
+    const have = heardEnglish.get(k);
+    if (!have) heardEnglish.set(k, { word: w, n: 1 });
+    else if (have.word.toLowerCase() === w.toLowerCase()) have.n++;
+  }
+}
+function romanWord(w) {
+  const key = dvNorm(w);
+  if (HI_MAP.has(key)) return HI_MAP.get(key);
+  if (EN_MAP.has(key)) return EN_MAP.get(key);
+  const k = soundDv(w);
+  if (k.length >= 3 && heardEnglish.has(k)) return heardEnglish.get(k).word;
+  return translitWord(w);
+}
+const hasDevanagari = s => /[ऀ-ॿ]/.test(s);
+function toRoman(text) {
+  if (!hasDevanagari(text)) return text;
+  return String(text)
+    .replace(/[०-९]/g, d => String(d.charCodeAt(0) - 0x0966))
+    .replace(/[।॥]/g, ".")
+    .replace(/[ऀ-ॣ॰-ॿ]+/g, romanWord);
+}
+
 /* ---------------- live captions, with translation ---------------- */
 // Each person's own browser turns their own speech into text (the Web Speech API) and sends the text
 // to the people who switched captions on, over the same links the chat uses. A speaker's browser has to
@@ -3514,6 +3729,13 @@ for (const [code, name] of SPEAK_LANGS) $("ccSpeak").add(new Option(name, code))
 for (const [code, name] of SHOW_LANGS) $("ccShow").add(new Option(name, code));
 $("ccSpeak").value = cap.lang;
 $("ccShow").value = cap.show;
+try { cap.roman = localStorage.getItem("gvc-cc-roman") === "1"; } catch (e) {}
+$("ccRoman").checked = !!cap.roman;
+$("ccRoman").onchange = () => {
+  cap.roman = $("ccRoman").checked;
+  try { localStorage.setItem("gvc-cc-roman", cap.roman ? "1" : "0"); } catch (e) {}
+  for (const who of cap.lines.keys()) renderCapLine(who);
+};
 
 function setCaptions(on) {
   if (cap.wanted === on || !inCall || left) return;
@@ -3569,10 +3791,10 @@ $("ccShow").onchange = () => {
 };
 
 // Listen to my own voice while anyone (me included) wants captions and my mic is on.
-function captionsNeeded() {
+function captionsNeeded() {                // someone wants captions, or someone is taking notes
   if (!inCall || left) return false;
-  if (cap.wanted) return true;
-  for (const [id, st] of pstate) if (st.cc && calls.has(id)) return true;
+  if (cap.wanted || notes.on) return true;
+  for (const [id, st] of pstate) if ((st.cc || st.notes) && calls.has(id)) return true;
   return false;
 }
 function capSync() {
@@ -3629,9 +3851,13 @@ function stopListening() {
 }
 function myCaption(text, final) {
   text = text.slice(-400);
+  const now = performance.now();
+  if (cap.segStart == null) cap.segStart = now;          // when this sentence started (for the notes' timings)
   if (final) {
     clearTimeout(cap.pendT); cap.pendT = null; cap.pending = null;
-    sendCaption({ t: "cc", id: cap.seg++, text, final: true, lang: cap.lang });
+    const dur = Math.round(now - cap.segStart);
+    cap.segStart = null;
+    sendCaption({ t: "cc", id: cap.seg++, text, final: true, lang: cap.lang, dur });
   } else {
     cap.pending = text;                   // words in progress go out at most 5 times a second
     if (!cap.pendT) cap.pendT = setTimeout(() => {
@@ -3643,16 +3869,20 @@ function myCaption(text, final) {
 }
 function endMyUtterance() {               // cut off mid-sentence (muted, stopped): clear the half-said words
   clearTimeout(cap.pendT); cap.pendT = null; cap.pending = null;
+  cap.segStart = null;
   sendCaption({ t: "cc", id: cap.seg++, text: "", final: false, lang: cap.lang });
 }
-function sendCaption(msg) {               // only to people who switched captions on
-  for (const [id, c] of peerConns) { const st = pstate.get(id); if (c.open && st && st.cc) try { c.send(msg); } catch (e) {} }
+function sendCaption(msg) {               // only to people who switched captions on, or are taking notes
+  for (const [id, c] of peerConns) { const st = pstate.get(id); if (c.open && st && (st.cc || st.notes)) try { c.send(msg); } catch (e) {} }
+  if (msg.final && msg.text) { learnWords(msg.text); notesSay("me", msg.text, msg.lang, msg.dur); }
   if (cap.wanted) showCaption("me", msg);
 }
 function receiveCap(id, msg) {
-  if (!cap.wanted || !calls.has(id) || typeof msg.text !== "string" || !Number.isInteger(msg.id)) return;
+  if (!calls.has(id) || typeof msg.text !== "string" || !Number.isInteger(msg.id)) return;
   const lang = typeof msg.lang === "string" && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(msg.lang) ? msg.lang : "en";
-  showCaption(id, { id: msg.id, text: msg.text.slice(0, 400), final: !!msg.final, lang });
+  const text = msg.text.slice(0, 400);
+  if (msg.final && text) { learnWords(text); notesSay(id, text, lang, msg.dur); }
+  if (cap.wanted) showCaption(id, { id: msg.id, text, final: !!msg.final, lang });
 }
 
 // One caption box per speaker: their last few sentences, plus the words they're saying right now.
@@ -3692,8 +3922,9 @@ function renderCapLine(who) {
   const b = document.createElement("b");
   b.textContent = who === "me" ? "You" : nameOf(who);
   el.appendChild(b);
-  const pieces = line.finals.map(s => ({ t: s.shown != null ? s.shown : s.text, c: s.shown != null ? "" : "wait" }));
-  const live = line.interimShown != null ? line.interimShown : line.interim;
+  const R = t => cap.roman ? toRoman(t) : t;                 // Hindi in Roman letters, if chosen
+  const pieces = line.finals.map(s => ({ t: R(s.shown != null ? s.shown : s.text), c: s.shown != null ? "" : "wait" }));
+  const live = R(line.interimShown != null ? line.interimShown : line.interim);
   if (live) pieces.push({ t: live, c: "interim" });
   let total = pieces.reduce((n, p) => n + p.t.length + 1, 0);
   while (total > 220 && pieces.length > 1) total -= pieces.shift().t.length + 1;    // keep it to about two lines
@@ -3805,6 +4036,599 @@ function decodeEntities(s) {              // MyMemory sometimes sends &#39; and 
 }
 showCapUI();
 
+/* ---------------- meeting notes ---------------- */
+// The host or a co-host switches notes on. Everyone's speech is then written down (each person's own browser
+// turns their voice into text, as for captions, and sends it to the note-taker), together with ⭐ marked moments,
+// typed notes, chat, whiteboard pictures and who came and went. When notes stop, it all becomes one interactive
+// web page: a single file that works offline and can be shared on WhatsApp. No AI and nothing to pay.
+const notes = { on: false, start: 0, end: 0, items: [], people: new Map(), recs: [], lastBoard: "", last: null };
+const anyNotesOn = () => notes.on || [...pstate].some(([id, st]) => st.notes && calls.has(id));
+const noteTakers = () => [...pstate].filter(([id, st]) => st.notes && calls.has(id)).map(([id]) => nameOf(id));
+const whoName = id => id === "me" ? myName : nameOf(id);
+function notesPerson(id) {
+  const name = whoName(id);
+  if (!notes.people.has(name)) notes.people.set(name, { joined: Date.now(), left: 0 });
+  else notes.people.get(name).left = 0;
+  return name;
+}
+function notesPush(item) { if (notes.on && notes.items.length < 20000) notes.items.push(item); }
+const lastSaid = new Map();                   // speaker -> when their last sentence ended
+function notesSay(id, text, lang, dur) {
+  if (!notes.on || !text) return;
+  const at = Date.now(), words = text.split(/\s+/).length, who = notesPerson(id);
+  const d = Number.isFinite(+dur) && +dur > 0 ? Math.min(+dur, 60000) : Math.min(60000, 600 + words * 380);   // when the sentence began
+  // not before this person's previous sentence ended, nor before they joined (or notes started)
+  const st = Math.max(at - d, lastSaid.get(who) || 0, notes.people.get(who).joined, notes.start);
+  lastSaid.set(who, at);
+  notesPush({ k: "say", at, st, who, text, lang });
+}
+function notesChat(id, text) {
+  if (!notes.on || !text) return;
+  learnWords(text);
+  notesPush({ k: "chat", at: Date.now(), who: whoName(id), text: String(text).slice(0, 500) });
+}
+function notesFile(id, name) { notesPush({ k: "file", at: Date.now(), who: whoName(id), text: name }); }
+function notesPresence(id, kind) {
+  if (!notes.on) return;
+  const name = whoName(id);
+  if (kind === "join") notesPerson(id);
+  else { const p = notes.people.get(name); if (p) p.left = Date.now(); }
+  notesPush({ k: kind, at: Date.now(), who: name });
+}
+// A picture of the whiteboard (when someone taps 📸, just before it's cleared, and at the end). Same board twice? Kept once.
+function boardToNotes(why, by) {
+  if (!notes.on || !wb.canvas || !wb.strokes.length) return false;
+  let img;
+  try { img = wb.canvas.toDataURL("image/jpeg", 0.82); } catch (e) { return false; }
+  if (img === notes.lastBoard) return false;
+  notes.lastBoard = img;
+  notesPush({ k: "board", at: Date.now(), who: by || "", why, img });
+  return true;
+}
+function addBoardToNotes() {
+  if (!anyNotesOn()) return;
+  if (!wb.strokes.length) { toast("The board is empty"); return; }
+  const added = boardToNotes("added", myName);
+  broadcast({ t: "note", kind: "board" });             // other note-takers save their own copy of the board
+  toast(notes.on && !added ? "This board is already in the notes" : "📸 Board added to the notes");
+}
+function markMoment() {
+  if (!anyNotesOn()) return;
+  notesPush({ k: "star", at: Date.now(), who: myName });
+  broadcast({ t: "note", kind: "star" });
+  toast("⭐ Marked for the notes");
+}
+function addTypedNote(text) {
+  text = String(text || "").trim().slice(0, 300);
+  if (!text || !anyNotesOn()) return false;
+  learnWords(text);
+  notesPush({ k: "note", at: Date.now(), who: myName, text });
+  broadcast({ t: "note", kind: "text", text });
+  toast("✏️ Note added");
+  return true;
+}
+function receiveNote(id, msg) {                         // marks, typed notes and 📸 from others
+  if (!notes.on || !calls.has(id) || !msg) return;
+  if (msg.kind === "star") notesPush({ k: "star", at: Date.now(), who: nameOf(id) });
+  else if (msg.kind === "text" && typeof msg.text === "string" && msg.text.trim()) {
+    learnWords(msg.text);
+    notesPush({ k: "note", at: Date.now(), who: nameOf(id), text: msg.text.trim().slice(0, 300) });
+  } else if (msg.kind === "board") boardToNotes("added", nameOf(id));
+}
+
+function startNotes() {
+  if (notes.on || !inCall || left) return;
+  if (!(isHost || amCohost())) { toast("Only the host or a co-host can start notes"); return; }
+  Object.assign(notes, { on: true, start: Date.now(), end: 0, items: [], people: new Map(), recs: [], lastBoard: "" });
+  lastSaid.clear();
+  notesPerson("me");
+  for (const id of calls.keys()) notesPerson(id);
+  if (rec.on) notes.recs.push({ start: rec.started, kind: rec.kind });
+  sendState();                                          // everyone sees "📝 Notes on" and starts sending me their words
+  capSync();
+  updateNotesUI();
+  toast(SR ? "📝 Taking notes — everyone's speech is being written down"
+           : "📝 Taking notes — this browser can't write down your own speech, but everyone else's is");
+}
+function stopNotes(auto) {
+  if (!notes.on) return;
+  boardToNotes("end");
+  notes.on = false;
+  notes.end = Date.now();
+  let built = null;
+  try { built = buildNotes(); } catch (e) { console.warn(e); toast("Couldn't make the notes"); }
+  if (!left) { sendState(); capSync(); updateNotesUI(); }
+  if (!built) return;
+  notes.last = built;
+  if (auto) { downloadNotes(); toast("Notes saved to your device"); }    // leaving the call
+  else showNotesReady();
+}
+
+let notesBtnShown = false;
+function updateNotesUI() {
+  const any = anyNotesOn(), canStart = isHost || amCohost();
+  const show = canStart || any || !!notes.last;
+  $("notesBtn").classList.toggle("hidden", !show);
+  $("notesBtn").classList.toggle("on", notes.on);
+  const takers = noteTakers();
+  if (notes.on) takers.unshift("You");
+  const who = takers.join(", ") + (takers.length > 1 || notes.on ? " are" : " is");
+  $("notesPill").classList.toggle("hidden", !any);
+  $("notesPill").textContent = notes.on ? "📝 Taking notes" : "📝 Notes on";
+  $("notesPill").title = who + " taking notes — everyone's speech is being written down";
+  $("notesStatus").textContent = notes.on ? "You're taking notes · " + notes.items.filter(i => i.k === "say").length + " lines so far"
+                               : any ? "📝 " + who + " taking notes" : "Notes are off";
+  $("notesToggle").classList.toggle("hidden", !canStart && !notes.on);
+  $("notesToggle").textContent = notes.on ? "⏹ Stop and get the notes" : "📝 Start taking notes";
+  $("notesTools").classList.toggle("hidden", !any);
+  $("notesAgain").classList.toggle("hidden", !notes.last || notes.on);
+  $("notesNote").textContent = any || canStart
+    ? "Everyone's speech is written down by their own browser (Chrome, Edge or Safari — Chrome uses Google for this). ⭐ marks, typed notes, chat and whiteboard pictures go in too."
+    : "";
+  if (wb.tools) wbShowTools();
+  if (show !== notesBtnShown) { notesBtnShown = show; arrangeControls(); }
+}
+$("notesBtn").onclick = () => { updateNotesUI(); openPop("notesPop", $("notesBtn")); };
+$("notesPill").onclick = () => $("notesBtn").click();
+$("notesToggle").onclick = () => { closePops(); if (notes.on) stopNotes(false); else startNotes(); };
+$("notesStar").onclick = () => { markMoment(); closePops(); };
+$("notesAdd").onclick = () => { if (addTypedNote($("notesInput").value)) $("notesInput").value = ""; };
+$("notesInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("notesAdd").click(); } });
+$("notesAgain").onclick = () => { closePops(); showNotesReady(); };
+
+// "Notes ready": open them, download them, or send the file to everyone in the chat.
+function sheetButton(body, label, cls, fn) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  if (cls) b.className = cls;
+  b.style.marginBottom = "8px";
+  b.onclick = () => { hideInfo(); fn(); };
+  body.appendChild(b);
+}
+function showNotesReady() {
+  const n = notes.last;
+  if (!n) return;
+  showInfo("📝 Notes ready", body => {
+    infoText(body, [n.summary, "It's one web page that works offline — open it in any browser, or share it on WhatsApp."]);
+    sheetButton(body, "Open the notes", "stay", openNotes);
+    sheetButton(body, "Download", "plain", downloadNotes);
+    if ([...peerConns.values()].some(c => c.open)) sheetButton(body, "Send to everyone in chat", "plain", () => {
+      if (sendChatFile(n.name, "text/html", new TextEncoder().encode(n.html).buffer, "all")) toast("Notes sent in the chat");
+    });
+  }, "Close");
+}
+function openNotes() {
+  const n = notes.last;
+  if (!n) return;
+  const url = URL.createObjectURL(new Blob([n.html], { type: "text/html" }));
+  const w = window.open(url, "_blank");
+  if (!w) downloadNotes();                               // pop-ups blocked: save it instead
+  setTimeout(() => URL.revokeObjectURL(url), 300000);
+}
+function downloadNotes() {
+  const n = notes.last;
+  if (!n) return;
+  const url = URL.createObjectURL(new Blob([n.html], { type: "text/html" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = n.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Turning what was collected into the notes: Roman letters, ⭐ marks attached to what was being said,
+// to-dos and important lines spotted by their words, topic words, parts, and who talked how much.
+const TODO_RE = /\b(kal tak|deadline|homework|assignments?|submit\w*|bhej\w*|share kar\w*|send\w*|karna (hai|hoga|padega)|kar (lena|dena|dunga|dungi|denge)|karenge|tomorrow|tonight|by (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|next (class|week|meeting)|to-?do|tasks?|remind\w*|yaad dila\w*)\b/i;
+const IMP_RE = /\b(important|imp|yaad rakh\w*|dhyan rakh\w*|dhyaan rakh\w*|dhyaan se|exams?|viva|zaroori|jaruri|zaruri|must|key points?|note kar\w*|note down|likh lo|likh lena)\b/i;
+const STOP_EN = new Set(("the,and,that,this,with,for,are,was,were,have,has,had,you,your,yours,they,them,their,there,here,what,when,where,which," +
+  "who,whom,why,how,will,would,should,could,can,cannot,just,like,okay,yeah,yes,also,then,than,from,into,about,some,very,really,actually," +
+  "basically,because,been,being,does,did,done,dont,its,going,gonna,want,know,think,said,say,make,made,thing,things,right,well,sure,one,two," +
+  "three,much,more,most,only,other,over,same,such,these,those,thank,thanks,please,hello,maybe,even,still,again,back,good,great,nice,today," +
+  "time,ok,haan,acha,achha,nahin,isliye,waala,bhai,yaar,matlab,kuch,sab,bahut,example,examples,study,studied,studying,using,used," +
+  "question,questions,answer,answers,class,notes,note,meeting,tomorrow,start,started,stop,part,line,people,everyone,something,anything," +
+  "nothing,work,working,need,needs,look,looking,show,tell,told,call,find,give,take,keep,come,came,goes,went,first,last,next,important," +
+  "exam,exams,share,send,submit,doing,getting,talk,talking,said,says,understand,explain,mean,means,okay,alright,guys,today's").split(","));
+const HI_STOP = new Set([...HI_MAP.values()].map(v => v.toLowerCase()));
+function keywordsOf(texts, n, skip) {
+  const count = new Map(), shape = new Map();
+  for (const t of texts) for (const raw of t.match(/[A-Za-z][A-Za-z'-]{3,}/g) || []) {
+    const w = raw.toLowerCase().replace(/'s$/, "");
+    if (STOP_EN.has(w) || HI_STOP.has(w) || skip.has(w)) continue;
+    count.set(w, (count.get(w) || 0) + 1);
+    if (!shape.has(w)) shape.set(w, raw.replace(/'s$/, ""));
+  }
+  return [...count].filter(([, c]) => c >= 2 || texts.length < 15).sort((a, b) => b[1] - a[1]).slice(0, n).map(([w]) => shape.get(w));
+}
+const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function buildNotes() {
+  const items = notes.items.map(x => Object.assign({}, x));
+  const time = x => x.st || x.at;
+  items.sort((a, b) => time(a) - time(b));
+  for (const it of items) if ((it.k === "say" || it.k === "note") && hasDevanagari(it.text)) it.roman = toRoman(it.text);
+  const plain = it => it.roman || it.text || "";
+  // ⭐ marks: people tap the star just after hearing something, so it goes on the sentence that finished in the
+  // last few seconds; failing that, the one being said right then; failing that, the last one in the 30 s before.
+  const says = items.filter(x => x.k === "say"), keep = [];
+  const lastIn = (from, to) => { for (let i = says.length - 1; i >= 0; i--) if (says[i].at >= from && says[i].at <= to) return says[i]; return null; };
+  for (const it of items) {
+    if (it.k !== "star") { keep.push(it); continue; }
+    const T = it.at;
+    const hit = lastIn(T - 5000, T) || says.find(x => x.st <= T && x.at >= T) || lastIn(T - 30000, T);
+    if (hit) { hit.star = true; hit.starBy = it.who; } else keep.push(it);
+  }
+  for (const it of keep) if (it.k === "say" || it.k === "note") {
+    const t = plain(it);
+    if (TODO_RE.test(t)) it.todo = true;
+    if (it.k === "say" && IMP_RE.test(t)) it.imp = true;
+  }
+  const names = new Set([...notes.people.keys()].map(n => n.toLowerCase()));
+  const topics = keywordsOf(keep.filter(x => x.k === "say" || x.k === "note").map(plain), 8, names);
+  // Parts: a new one after a minute of quiet, or every ten minutes, labelled with its main words
+  const parts = [];
+  let partAt = 0, lastSay = 0;
+  keep.forEach((it, i) => {
+    if (it.k !== "say") return;
+    const t = time(it);
+    if (!parts.length || t - lastSay > 60000 || t - partAt > 600000) { parts.push({ i, at: t }); partAt = t; }
+    lastSay = it.at;
+  });
+  parts.forEach((p, j) => {
+    const end = j + 1 < parts.length ? parts[j + 1].i : keep.length;
+    p.label = keywordsOf(keep.slice(p.i, end).filter(x => x.k === "say").map(plain), 3, names).join(", ");
+  });
+  for (const it of keep) if (it.k === "board") {            // what was being discussed when the picture was taken
+    const near = keep.filter(x => x.k === "say" && x.at >= it.at - 180000 && x.at <= it.at + 20000).map(plain);
+    it.about = keywordsOf(near, 3, names).join(", ");
+  }
+  const wordsBy = new Map();
+  for (const it of keep) if (it.k === "say") wordsBy.set(it.who, (wordsBy.get(it.who) || 0) + plain(it).split(/\s+/).filter(Boolean).length);
+  const people = [...notes.people].map(([name, p]) => ({ name, words: wordsBy.get(name) || 0, joined: p.joined, left: p.left || 0 }));
+  const missing = [...pstate].filter(([id, st]) => st.sr === false && calls.has(id)).map(([id]) => nameOf(id));
+  if (!SR) missing.unshift(myName);
+  const d = new Date(notes.start), two = n => String(n).padStart(2, "0");
+  const file = `meeting-notes-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}-${two(d.getMinutes())}.html`;
+  const data = { v: 1, room: prettyRoom(ROOM), audio: audioCall, start: notes.start, end: notes.end, taker: myName, people, missing,
+                 items: keep, topics, parts, recs: notes.recs, file };
+  const title = "Meeting notes — " + d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) + ", " +
+                d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const html = NOTES_PAGE.replace("__TITLE__", () => escapeHtml(title))
+                         .replace("__DATA__", () => JSON.stringify(data).replace(/</g, "\\u003c"));
+  const lines = says.length, marks = keep.filter(x => x.star || x.k === "note").length, boards = keep.filter(x => x.k === "board").length;
+  const summary = `${lines} line${lines === 1 ? "" : "s"} of conversation, ${marks} highlight${marks === 1 ? "" : "s"} and ` +
+                  `${boards} whiteboard picture${boards === 1 ? "" : "s"}.`;
+  return { html, name: file, summary };
+}
+
+// The notes page itself. Its data sits in the page as JSON and is shown with plain text only (never run as code).
+const NOTES_PAGE = String.raw`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f6f1ff;--panel:#fff;--panel2:#f1eafd;--line:#d8caf4;--text:#2b2147;--muted:#7b6f9c;--accent:#8463d8;--accent2:#b39af0;--yellow:#fff6cc}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:14px 12px 100px}
+.top{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;border-radius:18px;padding:18px;margin-bottom:12px}
+h1{margin:0;font-size:22px}.meta{opacity:.92;font-size:14px;margin-top:4px}
+.ppl{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.ppl span{background:rgba(255,255,255,.22);border-radius:999px;padding:2px 10px;font-size:13px}
+.warn{background:#fff4e6;border:1px solid #ffd8a8;color:#8a4b08;border-radius:12px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+.tools{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0 10px;display:flex;flex-direction:column;gap:8px}
+.search{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);font:inherit;background:#fff;color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font:inherit;font-size:13px;cursor:pointer;color:var(--text)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-right:2px}
+.lbl.sep{margin-left:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{font-size:13px;margin:0 0 8px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.row{display:flex;gap:8px;align-items:flex-start;padding:7px 4px;border-bottom:1px solid var(--panel2);cursor:pointer;border-radius:8px}
+.row:last-child{border-bottom:0}.row:hover{background:var(--panel2)}
+.row .tx{flex:1;min-width:0}.row .ic{flex:none;width:20px;text-align:center}
+.tag{font-size:11px;background:var(--panel2);color:var(--muted);border-radius:999px;padding:0 7px;margin-left:4px}
+.time{font-size:12px;color:var(--muted);white-space:nowrap}
+.todo input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent);flex:none}
+.todo.done .tx{text-decoration:line-through;color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;flex:none}
+.empty{color:var(--muted);font-size:14px}
+.part{margin:14px 0 4px;font-weight:700;color:var(--accent);font-size:13px;border-top:2px dashed var(--line);padding-top:10px}
+.part:first-child{margin-top:0;border-top:0;padding-top:0}
+.item{display:flex;gap:10px;padding:8px 6px;border-radius:12px;scroll-margin-top:150px}
+.item.star{background:var(--yellow)}
+.flash{outline:3px solid var(--accent);outline-offset:-3px}
+.av{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
+.body{flex:1;min-width:0}.who{font-weight:600;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.say p{margin:2px 0 0;overflow-wrap:anywhere}
+.note .box{background:var(--yellow);border-radius:10px;padding:6px 10px;margin-top:2px;overflow-wrap:anywhere}
+.sys{color:var(--muted);font-size:13px;padding:3px 6px 3px 46px;overflow-wrap:anywhere;scroll-margin-top:150px}
+.board{padding:8px 6px 8px 46px;scroll-margin-top:150px}
+.board img{max-width:100%;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block;margin-top:4px;background:#fff}
+.play{border:0;background:var(--panel2);color:var(--accent);border-radius:999px;padding:1px 9px;cursor:pointer;font-size:12px}
+.bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.bar b{width:96px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .tr{flex:1;background:var(--panel2);border-radius:6px;height:12px;overflow:hidden}.bar .fill{height:100%;background:var(--accent2);border-radius:6px}
+.bar span{width:44px;text-align:right;color:var(--muted);font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:0;border-radius:11px;padding:9px 14px;font:inherit;font-weight:600;background:var(--panel2);color:var(--accent);cursor:pointer}
+.btn.main{background:var(--accent);color:#fff}
+mark{background:#ffe066;border-radius:3px;padding:0 1px;color:inherit}
+a{color:var(--accent)}
+#viewer{position:fixed;inset:0;background:rgba(20,14,36,.9);display:none;align-items:center;justify-content:center;z-index:20;padding:14px;cursor:zoom-out}
+#viewer.on{display:flex}#viewer img{max-width:100%;max-height:100%;border-radius:10px;background:#fff}
+#player{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:8px 12px 10px;display:none;z-index:10;box-shadow:0 -8px 24px rgba(80,55,150,.15)}
+#player.on{display:block}#player .ph{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:4px}
+#player audio{width:100%}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
+@media print{.tools,.actions,.play,#player,.noprint,.x{display:none!important}body{background:#fff}.wrap{padding:0}.card{break-inside:avoid-page}}
+</style></head>
+<body><div class="wrap" id="app"></div>
+<div id="viewer"><img alt="Whiteboard"></div>
+<div id="player"><div class="ph"><b id="ptitle">Recording</b><button class="btn" id="pclose">Close</button></div><audio controls preload="auto"></audio></div>
+<input type="file" id="recfile" accept="audio/*,video/*" hidden>
+<script type="application/json" id="data">__DATA__[[/script]]
+<script>
+(function () {
+  var CLEAN = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;   // this file as it was, for "Save" and "Share"
+  var D = JSON.parse(document.getElementById("data").textContent);
+  var app = document.getElementById("app");
+  var KEY = "gvc-notes-" + D.room + "-" + D.start, store = {};
+  try { store = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
+  store.done = store.done || {}; store.notTodo = store.notTodo || {};
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+  var hasHindi = D.items.some(function (it) { return it.roman && it.roman !== it.text; });
+  var script = store.script === "orig" ? "orig" : "roman";
+  var query = "", person = "", rec = null, listBox = null;
+  var COLORS = ["#8463d8", "#e8590c", "#2f9e44", "#1c7ed6", "#c2255c", "#0c8599", "#5f3dc4", "#d9480f"];
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function hhmm(ms) { return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+  function words(it) { return script === "roman" && it.roman ? it.roman : (it.text || ""); }
+  function color(n) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
+  function when(it) { return it.st || it.at; }
+  // Text with the search word marked and web links made clickable.
+  function addText(parent, text) {
+    var re = /https?:\/\/[^\s<>"']+/g, last = 0, m;
+    function plain(s) {
+      if (!query) { parent.appendChild(document.createTextNode(s)); return; }
+      var lo = s.toLowerCase(), q = query.toLowerCase(), i = 0, j;
+      while ((j = lo.indexOf(q, i)) >= 0) { parent.appendChild(document.createTextNode(s.slice(i, j))); parent.appendChild(el("mark", null, s.slice(j, j + q.length))); i = j + q.length; }
+      parent.appendChild(document.createTextNode(s.slice(i)));
+    }
+    while ((m = re.exec(text))) {
+      plain(text.slice(last, m.index));
+      var a = el("a", null, m[0]); a.href = m[0]; a.target = "_blank"; a.rel = "noopener noreferrer";
+      parent.appendChild(a); last = m.index + m[0].length;
+    }
+    plain(text.slice(last));
+  }
+  function filtering() { return !!(query || person); }
+  function matches(it) {
+    if (person && it.who !== person) return false;
+    if (!query) return true;
+    return ((it.text || "") + " " + (it.roman || "") + " " + (it.about || "")).toLowerCase().indexOf(query.toLowerCase()) >= 0;
+  }
+  function chip(label, on, fn) { var b = el("button", "chip" + (on ? " on" : ""), label); b.onclick = fn; return b; }
+  function jump(i) {
+    if (filtering()) { query = ""; person = ""; render(); }
+    var e = document.getElementById("i" + i);
+    if (!e) return;
+    e.scrollIntoView({ behavior: "smooth", block: "center" });
+    e.classList.add("flash"); setTimeout(function () { e.classList.remove("flash"); }, 1800);
+  }
+  function render() {
+    app.textContent = "";
+    var h = el("header", "top");
+    h.appendChild(el("h1", null, "📝 Meeting notes"));
+    var mins = Math.max(1, Math.round((D.end - D.start) / 60000));
+    h.appendChild(el("div", "meta", new Date(D.start).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: "numeric" }) +
+      " · " + hhmm(D.start) + "–" + hhmm(D.end) + " (" + mins + " min) · Meeting " + D.room + (D.audio ? " · audio call" : "")));
+    var ppl = el("div", "ppl");
+    D.people.forEach(function (p) { ppl.appendChild(el("span", null, p.name)); });
+    h.appendChild(ppl);
+    app.appendChild(h);
+    if (D.missing.length) app.appendChild(el("div", "warn", "Speech wasn't written down for " + D.missing.join(", ") + " — their browser can't turn speech into text."));
+    var t = el("div", "tools noprint");
+    var s = el("input", "search"); s.type = "search"; s.placeholder = "🔍 Search the conversation…"; s.value = query;
+    s.oninput = function () { query = s.value.trim(); renderList(); };
+    t.appendChild(s);
+    if (D.topics.length) {
+      var tc = el("div", "chips"); tc.appendChild(el("span", "lbl", "Topics"));
+      D.topics.forEach(function (w) { var on = query.toLowerCase() === w.toLowerCase(); tc.appendChild(chip(w, on, function () { query = on ? "" : w; render(); })); });
+      t.appendChild(tc);
+    }
+    var pc = el("div", "chips"); pc.appendChild(el("span", "lbl", "People"));
+    pc.appendChild(chip("All", !person, function () { person = ""; render(); }));
+    D.people.forEach(function (p) { var on = person === p.name; pc.appendChild(chip(p.name, on, function () { person = on ? "" : p.name; render(); })); });
+    if (hasHindi) {
+      pc.appendChild(el("span", "lbl sep", "Letters"));
+      pc.appendChild(chip("Roman", script === "roman", function () { script = "roman"; store.script = script; save(); render(); }));
+      pc.appendChild(chip("हिंदी", script === "orig", function () { script = "orig"; store.script = script; save(); render(); }));
+    }
+    t.appendChild(pc);
+    app.appendChild(t);
+    listBox = el("div");
+    app.appendChild(listBox);
+    renderList();
+    talk();
+    actions();
+    app.appendChild(el("div", "foot", "Made with Group Video Call · © 2026 Anmol Pandey"));
+  }
+  function line(it) { return (it.who ? it.who + ": " : "") + words(it); }
+  function renderList() {
+    listBox.textContent = "";
+    if (!filtering()) { highlights(); todos(); }
+    conversation();
+  }
+  function highlights() {
+    var c = el("section", "card"); c.appendChild(el("h2", null, "⭐ Highlights"));
+    var n = 0;
+    D.items.forEach(function (it, i) {
+      var icon = it.star ? "⭐" : it.k === "note" ? "✏️" : it.k === "star" ? "⭐" : it.imp ? "🔖" : "";
+      if (!icon) return;
+      var r = el("div", "row"); r.onclick = function () { jump(i); };
+      r.appendChild(el("span", "ic", icon));
+      var tx = el("span", "tx");
+      addText(tx, it.k === "star" ? it.who + " marked a moment" : line(it));
+      if (it.imp && !it.star) tx.appendChild(el("span", "tag", "spotted"));
+      r.appendChild(tx); r.appendChild(el("span", "time", hhmm(when(it))));
+      c.appendChild(r); n++;
+    });
+    if (!n) c.appendChild(el("div", "empty", "Nothing marked. Next time, tap ⭐ (or press N) during the call when something important is said."));
+    listBox.appendChild(c);
+  }
+  function todos() {
+    var c = el("section", "card"); c.appendChild(el("h2", null, "✅ To-do"));
+    var n = 0;
+    D.items.forEach(function (it, i) {
+      if (!it.todo || store.notTodo[i]) return;
+      var r = el("div", "row todo" + (store.done[i] ? " done" : ""));
+      var box = el("input"); box.type = "checkbox"; box.checked = !!store.done[i];
+      box.onclick = function (e) { e.stopPropagation(); };
+      box.onchange = function () { store.done[i] = box.checked; save(); r.classList.toggle("done", box.checked); };
+      var tx = el("span", "tx"); addText(tx, line(it)); tx.onclick = function () { jump(i); };
+      var x = el("button", "x", "✕"); x.title = "Not a to-do"; x.onclick = function (e) { e.stopPropagation(); store.notTodo[i] = true; save(); renderList(); };
+      r.appendChild(box); r.appendChild(tx); r.appendChild(el("span", "time", hhmm(when(it)))); r.appendChild(x);
+      c.appendChild(r); n++;
+    });
+    if (!n) c.appendChild(el("div", "empty", "No to-dos spotted. Lines like “kal tak bhej dena” or “submit by Monday” show up here."));
+    listBox.appendChild(c);
+  }
+  function conversation() {
+    var c = el("section", "card");
+    var h = el("h2", null, filtering() ? "Search results" : "💬 Conversation");
+    if (D.recs.length && !rec) {
+      var pb = el("button", "btn noprint", "▶ Play along with your recording");
+      pb.title = "Open the recording you made during this call, then tap ▶ on any line to hear it";
+      pb.onclick = function () { document.getElementById("recfile").click(); };
+      h.appendChild(pb);
+    }
+    c.appendChild(h);
+    var parts = {}; D.parts.forEach(function (p, k) { parts[p.i] = "Part " + (k + 1) + " · " + hhmm(p.at) + (p.label ? " · " + p.label : ""); });
+    var shown = 0;
+    D.items.forEach(function (it, i) {
+      if (!filtering() && parts[i] && D.parts.length > 1) c.appendChild(el("div", "part", parts[i]));
+      var k = it.k;
+      if (filtering()) {
+        if (k === "board") { if (person || !matches(it)) return; }
+        else if (k === "say" || k === "note" || k === "chat" || k === "file") { if (!matches(it)) return; }
+        else return;
+      }
+      var e;
+      if (k === "say" || k === "note") {
+        e = el("div", "item " + k + (it.star ? " star" : ""));
+        var av = el("div", "av", (it.who || "?").trim().charAt(0).toUpperCase()); av.style.background = color(it.who || "?");
+        var b = el("div", "body"), w = el("div", "who");
+        w.appendChild(el("span", null, (k === "note" ? "✏️ " : "") + (it.who || "")));
+        w.appendChild(el("span", "time", hhmm(when(it))));
+        if (it.star) w.appendChild(el("span", "tag", "⭐ " + (it.starBy || "")));
+        if (rec && when(it) >= rec.start - 1000) {
+          var p = el("button", "play noprint", "▶"); p.title = "Play this moment";
+          p.onclick = function () { playAt(when(it)); };
+          w.appendChild(p);
+        }
+        b.appendChild(w);
+        var tx = el(k === "note" ? "div" : "p", k === "note" ? "box" : null); addText(tx, words(it)); b.appendChild(tx);
+        e.appendChild(av); e.appendChild(b);
+      } else if (k === "board") {
+        e = el("div", "board");
+        e.appendChild(el("div", "time", "🖼️ Whiteboard · " + hhmm(it.at) + (it.why === "cleared" ? " · just before it was cleared" : it.why === "end" ? " · at the end" : it.who ? " · added by " + it.who : "") + (it.about ? " · during: " + it.about : "")));
+        if (typeof it.img === "string" && it.img.indexOf("data:image/") === 0) {
+          var im = el("img"); im.src = it.img; im.alt = "Whiteboard at " + hhmm(it.at); im.loading = "lazy";
+          im.onclick = function () { var v = document.getElementById("viewer"); v.firstChild.src = it.img; v.classList.add("on"); };
+          e.appendChild(im);
+        }
+      } else if (k === "chat") { e = el("div", "sys"); addText(e, "💬 " + it.who + ": " + it.text); }
+      else if (k === "file") e = el("div", "sys", "📎 " + it.who + " shared a file: " + it.text);
+      else if (k === "join") e = el("div", "sys", "→ " + it.who + " joined · " + hhmm(it.at));
+      else if (k === "leave") e = el("div", "sys", "← " + it.who + " left · " + hhmm(it.at));
+      else if (k === "star") e = el("div", "sys", "⭐ " + it.who + " marked a moment · " + hhmm(it.at));
+      else return;
+      e.id = "i" + i;
+      c.appendChild(e); shown++;
+    });
+    if (!shown) c.appendChild(el("div", "empty", filtering() ? "Nothing matches." : "Nothing was said while notes were on."));
+    listBox.appendChild(c);
+  }
+  function talk() {
+    var total = D.people.reduce(function (s, p) { return s + p.words; }, 0);
+    if (!total) return;
+    var c = el("section", "card"); c.appendChild(el("h2", null, "🗣️ Who talked how much"));
+    var max = Math.max.apply(null, D.people.map(function (p) { return p.words; }));
+    D.people.slice().sort(function (a, b) { return b.words - a.words; }).forEach(function (p) {
+      var r = el("div", "bar"); r.appendChild(el("b", null, p.name));
+      var tr = el("div", "tr"), f = el("div", "fill"); f.style.width = Math.round(p.words / max * 100) + "%"; f.style.background = color(p.name);
+      tr.appendChild(f); r.appendChild(tr); r.appendChild(el("span", null, Math.round(p.words / total * 100) + "%"));
+      c.appendChild(r);
+    });
+    app.appendChild(c);
+  }
+  function asText() {
+    var out = ["MEETING NOTES — " + new Date(D.start).toLocaleString(), "Meeting " + D.room + " · " + D.people.map(function (p) { return p.name; }).join(", "), ""];
+    var hl = D.items.filter(function (it) { return it.star || it.k === "note"; });
+    if (hl.length) { out.push("HIGHLIGHTS"); hl.forEach(function (it) { out.push("- [" + hhmm(when(it)) + "] " + line(it)); }); out.push(""); }
+    var td = D.items.filter(function (it, i) { return it.todo && !store.notTodo[i]; });
+    if (td.length) { out.push("TO-DO"); D.items.forEach(function (it, i) { if (it.todo && !store.notTodo[i]) out.push((store.done[i] ? "- [x] " : "- [ ] ") + line(it)); }); out.push(""); }
+    out.push("CONVERSATION");
+    D.items.forEach(function (it) {
+      if (it.k === "say" || it.k === "note") out.push("[" + hhmm(when(it)) + "] " + (it.k === "note" ? "(note) " : "") + line(it));
+      else if (it.k === "chat") out.push("[" + hhmm(it.at) + "] (chat) " + it.who + ": " + it.text);
+      else if (it.k === "board") out.push("[" + hhmm(it.at) + "] (whiteboard picture)");
+    });
+    return out.join("\n");
+  }
+  function toast(msg) { var t = el("div", null, msg); t.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #d8caf4;border-radius:999px;padding:8px 16px;box-shadow:0 8px 24px rgba(80,55,150,.25);z-index:30;font-size:14px"; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2500); }
+  function actions() {
+    var c = el("section", "card noprint"); c.appendChild(el("h2", null, "Keep these notes"));
+    var a = el("div", "actions");
+    function btn(label, main, fn) { var b = el("button", "btn" + (main ? " main" : ""), label); b.onclick = fn; a.appendChild(b); }
+    btn("📋 Copy as text", true, function () {
+      var txt = asText();
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast("Copied"); }, fallback); else fallback();
+      function fallback() { var ta = el("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast("Copied"); } catch (e) {} ta.remove(); }
+    });
+    btn("🖨️ Save as PDF", false, function () { window.print(); });
+    var file = null;
+    try { file = new File([CLEAN], D.file, { type: "text/html" }); } catch (e) {}
+    if (navigator.share) btn("📤 Share", false, function () {
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: "Meeting notes" }).catch(function () {});
+      else navigator.share({ title: "Meeting notes", text: asText() }).catch(function () {});
+    });
+    btn("💾 Save this file", false, function () {
+      var url = URL.createObjectURL(new Blob([CLEAN], { type: "text/html" }));
+      var l = el("a"); l.href = url; l.download = D.file; document.body.appendChild(l); l.click(); l.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    });
+    c.appendChild(a);
+    app.appendChild(c);
+  }
+  // Play along: open the recording made during the call; each line then gets a ▶ that plays that moment.
+  var audio = document.querySelector("#player audio");
+  function playAt(t) {
+    if (!rec) return;
+    document.getElementById("player").classList.add("on");
+    var go = function () { try { audio.currentTime = Math.max(0, (t - rec.start) / 1000 - 1.5); } catch (e) {} audio.play().catch(function () {}); };
+    if (audio.readyState >= 1) go(); else audio.addEventListener("loadedmetadata", go, { once: true });
+  }
+  document.getElementById("recfile").onchange = function () {
+    var f = this.files[0]; this.value = "";
+    if (!f) return;
+    var pick = D.recs[0], m = /(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})/.exec(f.name);
+    if (m) {
+      var t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+      D.recs.forEach(function (r) { if (Math.floor(r.start / 60000) * 60000 === t) pick = r; });
+    }
+    rec = { start: pick.start, url: URL.createObjectURL(f) };
+    audio.src = rec.url;
+    document.getElementById("ptitle").textContent = "▶ " + f.name;
+    document.getElementById("player").classList.add("on");
+    renderList();
+  };
+  document.getElementById("pclose").onclick = function () { audio.pause(); document.getElementById("player").classList.remove("on"); };
+  var viewer = document.getElementById("viewer");
+  viewer.onclick = function () { viewer.classList.remove("on"); };
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") viewer.classList.remove("on"); });
+  render();
+})();
+[[/script]]
+</body></html>`.replace(/\[\[\/script\]\]/g, "<" + "/script>");
+
 /* ---------------- People panel: who's here, raised hands, and host controls ---------------- */
 let peopleOpen = false;
 const armed = new Map();                                // "action:id" -> time, for "click again to confirm"
@@ -3902,13 +4726,16 @@ $("fileInput").onchange = async () => {
   if (!f) return;
   if (f.size > MAX_FILE) { toast("Files can be up to 20 MB"); return; }
   if (!f.size) { toast("That file is empty"); return; }
-  const to = $("chatTo").value;
-  const targets = to === "all" ? [...peerConns.values()].filter(c => c.open) : [peerConns.get(to)].filter(c => c && c.open);
-  if (!targets.length) { toast(to === "all" ? "There's nobody to send it to yet" : "Can't reach " + nameOf(to) + " right now"); return; }
   let data;
   try { data = await f.arrayBuffer(); } catch (e) { toast("Couldn't read that file"); return; }
-  const msg = { t: "file", name: fileName(f.name), mime: String(f.type || "").slice(0, 100), data, pm: to !== "all" };
+  sendChatFile(f.name, f.type, data, $("chatTo").value);
+};
+function sendChatFile(name, mime, data, to) {
+  const targets = to === "all" ? [...peerConns.values()].filter(c => c.open) : [peerConns.get(to)].filter(c => c && c.open);
+  if (!targets.length) { toast(to === "all" ? "There's nobody to send it to yet" : "Can't reach " + nameOf(to) + " right now"); return false; }
+  const msg = { t: "file", name: fileName(name), mime: String(mime || "").slice(0, 100), data, pm: to !== "all" };
   for (const c of targets) try { c.send(msg); } catch (e) { console.warn(e); }   // goes straight to them, not via any server
+  if (!msg.pm) notesFile("me", msg.name);
   const box = addFileMsg("me", msg.name, msg.mime, data, msg.pm, to);
   // Big files take a moment: show "Sending…" until everything has left this device.
   const status = document.createElement("div");
@@ -3923,12 +4750,14 @@ $("fileInput").onchange = async () => {
       status.textContent = waiting === 0 ? "Sent ✓" : "Couldn't finish sending";
     }
   }, 400);
-};
+  return true;
+}
 function receiveFile(id, msg) {
   let data = msg.data;
   if (ArrayBuffer.isView(data)) data = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   if (!(data instanceof ArrayBuffer) || !data.byteLength || data.byteLength > MAX_FILE) return;
   addFileMsg(id, fileName(msg.name), String(msg.mime || ""), data, !!msg.pm);
+  if (!msg.pm) notesFile(id, fileName(msg.name));
 }
 function addFileMsg(fromId, name, mime, data, pm, toId) {
   const box = document.createElement("div");
@@ -4093,6 +4922,7 @@ $("chatForm").onsubmit = e => {
   if (to === "all") {
     broadcast({ t: "chat", text, pm: false });
     addChat("me", text, false);
+    notesChat("me", text);
   } else {
     const c = peerConns.get(to);
     if (!c || !c.open) { toast("Can't reach " + nameOf(to) + " right now"); return; }
@@ -4201,7 +5031,7 @@ $("mic").onclick = () => {
 const SHORTCUTS = [["M", "Mute or unmute"], ["Hold Space", "Talk while muted"], ["V", "Camera on or off"],
   ["C", "Captions on or off"], ["H", "Raise or lower your hand"], ["1 – 7", "Send a reaction"], ["T", "Open or close chat"],
   ["P", "Open or close People"], ["S", "Share your screen"], ["E", "Backgrounds and face filters"], ["D", "Draw on your video"],
-  ["W", "Whiteboard"], ["I", "Invite people"], ["Ctrl + Z", "Undo your last line"], ["?", "Show these shortcuts"],
+  ["W", "Whiteboard"], ["N", "⭐ Mark this moment in the notes"], ["I", "Invite people"], ["Ctrl + Z", "Undo your last line"], ["?", "Show these shortcuts"],
   ["Esc", "Close pop-ups"]];
 const typing = el => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 addEventListener("keydown", e => {
@@ -4217,6 +5047,11 @@ addEventListener("keydown", e => {
   const keys = { m: "mic", v: "cam", h: "raiseBtn", t: "chatBtn", p: "peopleBtn", s: "share", d: "draw", w: "wbBtn", i: "copy" };
   if (keys[k]) press(keys[k]);
   else if (k === "c") { e.preventDefault(); setCaptions(!cap.wanted); }
+  else if (k === "n") {                                  // ⭐ while notes are on; otherwise the notes menu (host/co-hosts)
+    e.preventDefault();
+    if (anyNotesOn()) markMoment();
+    else if (isHost || amCohost()) { updateNotesUI(); openPop("notesPop", $("notesBtn")); }
+  }
   else if (k === "e" && !$("filterBtn").classList.contains("hidden")) { e.preventDefault(); openPop("filterPop", $("filterBtn")); }
 });
 addEventListener("keyup", e => {
